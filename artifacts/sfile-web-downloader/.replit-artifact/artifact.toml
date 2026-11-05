@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Sfile Web Downloader"
+description = "A web downloader that follows supported Sfile short-link pages, reports each redirect and wait step, and streams a discovered file to the visitor."
+version = "1.0.0"
+id = "artifacts/sfile-web-downloader"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 25343
+
+[services.development]
+run = "pnpm --filter @workspace/sfile-web-downloader run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/sfile-web-downloader", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/sfile-web-downloader/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "25343"
+BASE_PATH = "/"

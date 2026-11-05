@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: downloads
+    description: Browser-assisted Sfile downloads
 paths:
   /healthz:
     get:
@@ -24,6 +26,99 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /downloads:
+    post:
+      operationId: startDownload
+      tags: [downloads]
+      summary: Start a download from a supported short link
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DownloadRequest"
+      responses:
+        "202":
+          description: Download job accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DownloadJob"
+        "400":
+          description: Invalid or unsupported URL
+        "429":
+          description: Download queue is full
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required: [error]
+  /downloads/{jobId}:
+    get:
+      operationId: getDownload
+      tags: [downloads]
+      summary: Get download progress
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Current download progress
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DownloadJob"
+        "404":
+          description: Download job not found
+  /downloads/{jobId}/cancel:
+    post:
+      operationId: cancelDownload
+      tags: [downloads]
+      summary: Cancel a running download
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Updated download job
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DownloadJob"
+        "404":
+          description: Download job not found
+  /downloads/{jobId}/file:
+    get:
+      operationId: getDownloadedFile
+      tags: [downloads]
+      summary: Download the completed file
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Downloaded file
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "409":
+          description: Download is not complete
+        "404":
+          description: Download job or file not found
 components:
   schemas:
     HealthStatus:
@@ -33,4 +128,47 @@ components:
           type: string
       required:
         - status
+    DownloadRequest:
+      type: object
+      properties:
+        url:
+          type: string
+          format: uri
+          maxLength: 2048
+      required:
+        - url
+    DownloadStep:
+      type: object
+      properties:
+        id:
+          type: integer
+        kind:
+          type: string
+          enum: [open, wait, click, redirect, download, notice]
+        message:
+          type: string
+        url:
+          type: ["string", "null"]
+      required: [id, kind, message, url]
+    DownloadJob:
+      type: object
+      properties:
+        id:
+          type: string
+        status:
+          type: string
+          enum: [queued, running, completed, failed, blocked, cancelled]
+        message:
+          type: string
+        steps:
+          type: array
+          items:
+            $ref: "#/components/schemas/DownloadStep"
+        fileName:
+          type: ["string", "null"]
+        fileSize:
+          type: ["integer", "null"]
+        error:
+          type: ["string", "null"]
+      required: [id, status, message, steps, fileName, fileSize, error]
 

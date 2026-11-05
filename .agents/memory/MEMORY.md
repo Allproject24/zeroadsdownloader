@@ -1,0 +1,1 @@
+- [Sfile downloader platform](sfile-downloader-platform.md) — Keep link handling in the web app itself; do not require 1DM or another external download manager.
