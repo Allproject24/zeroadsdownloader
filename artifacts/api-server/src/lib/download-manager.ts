@@ -23,6 +23,7 @@ export type DownloadStatus =
 export type DownloadStepKind =
   | "open"
   | "wait"
+  | "scroll"
   | "click"
   | "redirect"
   | "download"
@@ -63,16 +64,20 @@ const SUPPORTED_START_HOSTS = [
   "sfile.mobi",
   "safefileku.com",
 ];
+const FLOW_HOSTS = [...SUPPORTED_START_HOSTS, "app.khaddavi.net"];
+const SAFE_POPUP_HOSTS = SUPPORTED_START_HOSTS;
 const FILE_HOSTS = ["sfile.co", "sfile.mobi", "safefileku.com"];
 const MAX_ACTIVE_JOBS = 2;
 const MAX_QUEUED_JOBS = 4;
 const MAX_BROWSER_TABS = 12;
-const MAX_OPEN_CLICKS_PER_TAB = 3;
+const MAX_OPEN_CLICKS_PER_TAB = 8;
 const MAX_FLOW_TIME_MS = 2 * 60 * 1000;
 const MAX_FILE_BYTES = 500 * 1024 * 1024;
 const JOB_TTL_MS = 20 * 60 * 1000;
-const WAIT_AFTER_CLICK_MS = 10_000;
 const BROWSER_PROTOCOL_TIMEOUT_MS = 15_000;
+const OPEN_ACTION_WAIT_MS = 10_000;
+const NEXT_ACTION_WAIT_MS = 1_000;
+const DEFAULT_ACTION_WAIT_MS = 3_000;
 const jobs = new Map<string, DownloadJob>();
 const queuedWorkers: Array<() => void> = [];
 let activeWorkers = 0;
@@ -206,6 +211,54 @@ function sanitizeFilename(value: string): string {
 function hostMatches(host: string, domains: string[]): boolean {
   const normalized = host.toLowerCase().replace(/\.$/, "");
   return domains.some((domain) => normalized === domain || normalized.endsWith(`.${domain}`));
+}
+
+function isFlowUrl(value: string, domains = FLOW_HOSTS): boolean {
+  try {
+    const url = new URL(value);
+    return (
+      (url.protocol === "http:" || url.protocol === "https:") &&
+      hostMatches(url.hostname, domains)
+    );
+  } catch {
+    return false;
+  }
+}
+
+function normalizeActionLabel(label: string): string {
+  return label.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+}
+
+function preferredNextAction(label: string, history: string[]): string | null {
+  switch (normalizeActionLabel(label)) {
+    case "open":
+      return history.includes("next") ? "continue" : "next";
+    case "next":
+      return "open";
+    case "continue":
+      return "go to link";
+    case "go to link":
+    case "open link":
+      return "download";
+    default:
+      return null;
+  }
+}
+
+function waitAfterAction(label: string): number {
+  const normalized = normalizeActionLabel(label);
+  if (normalized === "open") return OPEN_ACTION_WAIT_MS;
+  if (normalized === "next") return NEXT_ACTION_WAIT_MS;
+  if (normalized === "continue" || normalized === "go to link") {
+    return DEFAULT_ACTION_WAIT_MS;
+  }
+  if (normalized === "open link") return DEFAULT_ACTION_WAIT_MS;
+  return DEFAULT_ACTION_WAIT_MS;
+}
+
+function waitMessage(label: string, durationMs: number): string {
+  const seconds = Math.round(durationMs / 1000);
+  return `Menunggu ${seconds} detik setelah tombol “${label}”.`;
 }
 
 function isPublicAddress(address: string): boolean {
@@ -397,8 +450,21 @@ async function runBrowserFlow(job: DownloadJob): Promise<void> {
   const queuedPages = new WeakSet<Page>();
   queuedPages.add(page);
   const attemptsByPage = new WeakMap<Page, number>();
+  const actionsByPage = new WeakMap<Page, Set<string>>();
+  const actionHistoryByPage = new WeakMap<Page, string[]>();
+  const preferredActionsByPage = new WeakMap<Page, string>();
+  const waitedReadyPages = new WeakSet<Page>();
   let uniqueTabs = 0;
   const startedAt = Date.now();
+
+  const enqueueFlowPage = (candidate: Page, popup = false): void => {
+    const allowedHosts = popup ? SAFE_POPUP_HOSTS : FLOW_HOSTS;
+    if (candidate.isClosed() || !isFlowUrl(candidate.url(), allowedHosts)) return;
+    if (!queuedPages.has(candidate)) {
+      queuedPages.add(candidate);
+      pendingPages.push(candidate);
+    }
+  };
 
   const attachPage = async (target: Page): Promise<void> => {
     if (knownPages.has(target)) return;
@@ -427,6 +493,16 @@ async function runBrowserFlow(job: DownloadJob): Promise<void> {
           await request.abort("blockedbyclient");
           return;
         }
+        if (
+          request.isNavigationRequest() &&
+          request.frame() === target.mainFrame() &&
+          !isFlowUrl(rawUrl)
+        ) {
+          addStep(job, "notice", "Tab di luar alur unduhan Sfile diabaikan.", rawUrl);
+          await request.abort("blockedbyclient");
+          if (target !== page) void target.close().catch(() => undefined);
+          return;
+        }
         let check = hostCache.get(parsed.hostname);
         if (!check) {
           check = isPublicHost(parsed.hostname);
@@ -451,18 +527,30 @@ async function runBrowserFlow(job: DownloadJob): Promise<void> {
     target.on("framenavigated", (frame) => {
       if (frame !== target.mainFrame()) return;
       const url = frame.url();
-      if (url && url !== "about:blank") {
-        addStep(job, "redirect", "Halaman berpindah ke langkah berikutnya.", url);
+      if (!url || url === "about:blank") return;
+      if (!isFlowUrl(url)) {
+        addStep(job, "notice", "Tab di luar alur unduhan Sfile diabaikan.", url);
+        if (target !== page) void target.close().catch(() => undefined);
+        return;
       }
+      if (target !== page && !isFlowUrl(url, SAFE_POPUP_HOSTS)) {
+        addStep(job, "notice", "Tab latar yang bukan tujuan unduhan diabaikan.", url);
+        void target.close().catch(() => undefined);
+        return;
+      }
+      addStep(job, "redirect", "Halaman berpindah ke langkah berikutnya.", url);
+      if (target !== page) enqueueFlowPage(target, true);
     });
     target.on("popup", (popup) => {
       if (!popup) return;
       void attachPage(popup).then(() => {
-        if (!queuedPages.has(popup)) {
-          queuedPages.add(popup);
-          pendingPages.push(popup);
+        if (isFlowUrl(popup.url(), SAFE_POPUP_HOSTS)) {
+          enqueueFlowPage(popup, true);
+        } else if (popup.url() !== "about:blank") {
+          addStep(job, "notice", "Tab di luar alur unduhan Sfile diabaikan.", popup.url());
+          void popup.close().catch(() => undefined);
         }
-      });
+      }).catch(() => popup.close().catch(() => undefined));
     });
   };
 
@@ -493,15 +581,43 @@ async function runBrowserFlow(job: DownloadJob): Promise<void> {
     const text = await current
       .evaluate(() => `${document.title}\n${document.body?.innerText ?? ""}`)
       .catch(() => "");
-    if (isHumanVerification(text, currentUrl)) {
+    const cloudflareFrame = await current
+      .$(
+        'iframe[src*="challenges.cloudflare.com"], iframe[src*="cloudflare"], iframe[title*="challenge"]',
+      )
+      .then(Boolean)
+      .catch(() => false);
+    if (isHumanVerification(text, currentUrl) || cloudflareFrame) {
       job.status = "blocked";
-      job.error = "Situs meminta verifikasi manusia; proses tidak melewati CAPTCHA.";
+      job.error =
+        "Cloudflare meminta verifikasi manusia. Proses berhenti di sini dan tidak akan mencentang atau melewati verifikasi.";
       job.message = job.error;
       addStep(job, "notice", job.error, currentUrl);
       break;
     }
 
-    const action = await findAction(current);
+    const readyCountdown = text.match(
+      /(?:(?:your|you)\s+)?file\s+(?:(?:is|will be)\s+)?ready\s+in\s+(\d+)\s*(?:seconds?|secs?|s)\b/i,
+    );
+    if (readyCountdown && !waitedReadyPages.has(current)) {
+      waitedReadyPages.add(current);
+      const seconds = Math.max(1, Math.min(30, Number(readyCountdown[1])));
+      addStep(
+        job,
+        "wait",
+        `File siap dalam ${seconds} detik; menunggu sebelum mengunduh.`,
+        currentUrl,
+      );
+      await waitWhileRunning(job, seconds * 1_000);
+      if (job.status !== "running" || current.isClosed()) break;
+    }
+
+    const attemptedActions = actionsByPage.get(current) ?? new Set<string>();
+    actionsByPage.set(current, attemptedActions);
+    const actionHistory = actionHistoryByPage.get(current) ?? [];
+    actionHistoryByPage.set(current, actionHistory);
+    const preferredAction = preferredActionsByPage.get(current) ?? null;
+    const action = await findAction(current, attemptedActions, preferredAction);
     if (!action) continue;
     const attempts = attemptsByPage.get(current) ?? 0;
     if (attempts >= MAX_OPEN_CLICKS_PER_TAB) continue;
@@ -514,6 +630,19 @@ async function runBrowserFlow(job: DownloadJob): Promise<void> {
       currentUrl,
     );
     const priorUrl = current.url();
+    attemptedActions.add(action.signature);
+    if (action.needsScroll) {
+      addStep(job, "scroll", `Menggulir ke tombol “${action.label}”.`, currentUrl);
+      await action.handle
+        .evaluate((element) =>
+          (element as HTMLElement).scrollIntoView({ behavior: "auto", block: "center" }),
+        )
+        .catch(() => undefined);
+      await waitWhileRunning(job, 300);
+    }
+    const nextPreferred = preferredNextAction(action.label, actionHistory);
+    actionHistory.push(normalizeActionLabel(action.label));
+    if (nextPreferred) preferredActionsByPage.set(current, nextPreferred);
     try {
       await action.handle.click({ delay: 40 });
     } catch (error) {
@@ -533,39 +662,57 @@ async function runBrowserFlow(job: DownloadJob): Promise<void> {
         currentUrl,
       );
     }
+    const postClickWait = waitAfterAction(action.label);
     addStep(
       job,
       "wait",
-      "Menunggu 10 detik sebelum melanjutkan alur.",
+      waitMessage(action.label, postClickWait),
       current.url(),
     );
-    await waitWhileRunning(job, WAIT_AFTER_CLICK_MS);
+    await waitWhileRunning(job, postClickWait);
     if (job.status !== "running" || job.cancelRequested) break;
 
     const allPages = await browser.pages();
     for (const newPage of allPages) {
+      if (newPage === current) continue;
       if (!knownPages.has(newPage)) await attachPage(newPage);
-      if (!queuedPages.has(newPage)) {
-        queuedPages.add(newPage);
-        pendingPages.push(newPage);
+      if (newPage === page) {
+        enqueueFlowPage(newPage);
+      } else if (isFlowUrl(newPage.url(), SAFE_POPUP_HOSTS)) {
+        enqueueFlowPage(newPage, true);
+      } else if (newPage.url() !== "about:blank") {
+        addStep(job, "notice", "Tab di luar alur unduhan Sfile diabaikan.", newPage.url());
+        void newPage.close().catch(() => undefined);
       }
     }
 
-    if (current.url() !== priorUrl && !current.isClosed()) {
-      addStep(job, "redirect", "Kembali ke halaman sebelumnya untuk mencoba langkah berikutnya.", current.url());
-      await current.goBack({ waitUntil: "domcontentloaded", timeout: 12_000 }).catch(() => undefined);
-      await waitWhileRunning(job, 500);
+    const afterClickUrl = current.url();
+    if (afterClickUrl !== priorUrl && !current.isClosed()) {
+      if (isFlowUrl(afterClickUrl)) {
+        addStep(job, "redirect", "Mengikuti halaman tujuan di tab ini.", afterClickUrl);
+        actionsByPage.set(current, new Set());
+        attemptsByPage.set(current, 0);
+        if (current !== page && isFlowUrl(afterClickUrl, SAFE_POPUP_HOSTS)) {
+          enqueueFlowPage(current, true);
+        }
+      } else {
+        addStep(job, "redirect", "Kembali ke halaman unduhan setelah pengalihan eksternal.", afterClickUrl);
+        await current.goBack({ waitUntil: "domcontentloaded", timeout: 12_000 }).catch(() => undefined);
+        await waitWhileRunning(job, 500);
+      }
     }
 
+    const remainingAttempts = attemptsByPage.get(current) ?? attempts + 1;
     if (
-      attempts + 1 < MAX_OPEN_CLICKS_PER_TAB &&
+      remainingAttempts < MAX_OPEN_CLICKS_PER_TAB &&
       !current.isClosed() &&
-      (await findAction(current))
+      (await findAction(
+        current,
+        actionsByPage.get(current) ?? new Set<string>(),
+        preferredActionsByPage.get(current) ?? null,
+      ))
     ) {
-      if (!queuedPages.has(current)) {
-        queuedPages.add(current);
-        pendingPages.push(current);
-      }
+      enqueueFlowPage(current, current !== page);
     }
   }
 
@@ -595,15 +742,24 @@ async function runBrowserFlow(job: DownloadJob): Promise<void> {
 
 async function findAction(
   page: Page,
-): Promise<{ handle: ClickableHandle; label: string } | null> {
+  attemptedActions: Set<string>,
+  preferredLabel: string | null,
+): Promise<{
+  handle: ClickableHandle;
+  label: string;
+  signature: string;
+  needsScroll: boolean;
+} | null> {
   const controls = await page.$$("button, a, input[type=submit], [role=button]").catch(() => []);
   const candidates: Array<{
     handle: (typeof controls)[number];
     label: string;
     score: number;
+    signature: string;
+    needsScroll: boolean;
   }> = [];
 
-  for (const handle of controls) {
+  for (const [index, handle] of controls.entries()) {
     const details = await handle
       .evaluate((element) => {
         const htmlElement = element as HTMLElement;
@@ -625,39 +781,56 @@ async function findAction(
           tag: htmlElement.tagName.toLowerCase(),
           className: htmlElement.className.toString(),
           href: (htmlElement as HTMLAnchorElement).href || "",
+          needsScroll: rect.top < 0 || rect.bottom > window.innerHeight,
         };
       })
       .catch(() => null);
     if (!details?.visible || !details.label) continue;
     const label = details.label;
-    const normalized = label.toLowerCase();
+    const normalized = normalizeActionLabel(label);
+    const signature = `${index}:${normalized}:${details.href}`;
+    if (attemptedActions.has(signature)) continue;
     let score = 0;
     if (normalized === "open") score = 100;
-    else if (/^(get\s*link|continue|proceed|next|lanjut|buka\s*link)$/i.test(normalized)) score = 80;
-    else if (/^(download|unduh|download\s*now|unduh\s*sekarang)$/i.test(normalized)) score = 90;
+    else if (normalized === "open link") score = 95;
+    else if (/^(download|unduh|download now|download file|download your file|unduh sekarang|unduh file)$/i.test(normalized)) score = 90;
+    else if (/^(get link|continue|proceed|next|lanjut|buka link|go to link)$/i.test(normalized)) score = 80;
     if (!score) continue;
+    if (
+      preferredLabel === normalized ||
+      (preferredLabel === "download" && /^(download|unduh)/.test(normalized))
+    ) {
+      score += 100;
+    }
     if (details.tag === "button") score += 10;
     if (/slbtn/i.test(details.className)) score += 30;
     if (details.href) {
       try {
-        if (hostMatches(new URL(details.href).hostname, [...FILE_HOSTS, "sfl.gl", "safelinku.com"])) {
+        if (hostMatches(new URL(details.href).hostname, FLOW_HOSTS)) {
           score += 20;
         }
       } catch {
         // Ignore malformed links and keep the text-based score.
       }
     }
-    candidates.push({ handle, label, score });
+    candidates.push({ handle, label, score, signature, needsScroll: details.needsScroll });
   }
 
   candidates.sort((a, b) => b.score - a.score);
   const top = candidates[0];
-  return top ? { handle: top.handle, label: top.label } : null;
+  return top
+    ? {
+        handle: top.handle,
+        label: top.label,
+        signature: top.signature,
+        needsScroll: top.needsScroll,
+      }
+    : null;
 }
 
 function isHumanVerification(text: string, url: string): boolean {
   return (
-    /just a moment|verify (?:that )?you are human|checking your browser|complete the security check|cf-chl-/i.test(
+    /just a moment|verify (?:that )?you are human|verifying (?:that )?you are human|i am human|i'm human|human verification|checking your browser|complete the security check|cf-chl-|cf-turnstile|challenge-platform|cloudflare.{0,60}(?:verify|challenge|human)/i.test(
       `${text}\n${url}`,
     ) ||
     /\/cdn-cgi\/challenge-platform\//i.test(url)

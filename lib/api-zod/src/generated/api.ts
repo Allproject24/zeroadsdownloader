@@ -34,7 +34,7 @@ export const StartDownloadResponse = zod.object({
   "message": zod.string(),
   "steps": zod.array(zod.object({
   "id": zod.number().int(),
-  "kind": zod.enum(['open', 'wait', 'click', 'redirect', 'download', 'notice']),
+  "kind": zod.enum(['open', 'wait', 'scroll', 'click', 'redirect', 'download', 'notice']),
   "message": zod.string(),
   "url": zod.string().nullable()
 })),
@@ -57,7 +57,7 @@ export const GetDownloadResponse = zod.object({
   "message": zod.string(),
   "steps": zod.array(zod.object({
   "id": zod.number().int(),
-  "kind": zod.enum(['open', 'wait', 'click', 'redirect', 'download', 'notice']),
+  "kind": zod.enum(['open', 'wait', 'scroll', 'click', 'redirect', 'download', 'notice']),
   "message": zod.string(),
   "url": zod.string().nullable()
 })),
@@ -80,7 +80,7 @@ export const CancelDownloadResponse = zod.object({
   "message": zod.string(),
   "steps": zod.array(zod.object({
   "id": zod.number().int(),
-  "kind": zod.enum(['open', 'wait', 'click', 'redirect', 'download', 'notice']),
+  "kind": zod.enum(['open', 'wait', 'scroll', 'click', 'redirect', 'download', 'notice']),
   "message": zod.string(),
   "url": zod.string().nullable()
 })),

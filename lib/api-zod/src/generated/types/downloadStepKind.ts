@@ -12,6 +12,7 @@ export type DownloadStepKind = typeof DownloadStepKind[keyof typeof DownloadStep
 export const DownloadStepKind = {
   open: 'open',
   wait: 'wait',
+  scroll: 'scroll',
   click: 'click',
   redirect: 'redirect',
   download: 'download',

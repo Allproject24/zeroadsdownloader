@@ -1,6 +1,7 @@
 import { useState, type FormEvent, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import {
+  ArrowDown,
   ArrowDownToLine,
   ArrowRight,
   Check,
@@ -60,6 +61,7 @@ function stepIcon(kind: DownloadStep['kind']) {
   switch (kind) {
     case 'open': return <ExternalLink size={12} />;
     case 'wait': return <Clock3 size={12} />;
+    case 'scroll': return <ArrowDown size={12} />;
     case 'click': return <ArrowRight size={12} />;
     case 'redirect': return <RotateCcw size={12} />;
     case 'download': return <ArrowDownToLine size={12} />;

@@ -144,7 +144,7 @@ components:
           type: integer
         kind:
           type: string
-          enum: [open, wait, click, redirect, download, notice]
+          enum: [open, wait, scroll, click, redirect, download, notice]
         message:
           type: string
         url:
