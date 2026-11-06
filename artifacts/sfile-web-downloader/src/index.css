@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@700&display=swap');
 @import 'tailwindcss';
 @import 'tw-animate-css';
 
@@ -26,8 +26,8 @@
   --popover-foreground: 0 0% 94%;
   --popover-border: 0 0% 18%;
   --ring: 0 72% 48%;
-  --app-font-sans: 'DM Sans', sans-serif;
-  --app-font-mono: 'DM Mono', monospace;
+  --app-font-sans: 'Inter', sans-serif;
+  --app-font-mono: 'Inter', sans-serif;
   --radius: 1.2rem;
   color-scheme: dark;
 }
@@ -74,26 +74,29 @@ button:disabled {
   min-height: 100dvh;
   display: grid;
   place-items: center;
-  padding: 24px 0;
+  padding: 28px 16px;
   background:
-    radial-gradient(ellipse at 50% 35%, hsl(0 70% 14% / .13), transparent 32rem),
-    #050505;
+    radial-gradient(75% 36% at 50% 0%, rgb(165 22 42 / .36), transparent 70%),
+    radial-gradient(85% 34% at 50% 100%, rgb(120 10 28 / .34), transparent 70%),
+    #070304;
 }
 
 .main-content {
-  width: min(430px, calc(100% - 36px));
+  width: min(420px, 100%);
 }
 
 .downloader-card {
-  min-height: 630px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 34px 22px 24px;
-  border: 1px solid hsl(0 0% 100% / .09);
-  border-radius: 34px;
-  background: linear-gradient(155deg, #0b0b0b, #070707 72%);
-  box-shadow: 0 26px 80px hsl(0 0% 0% / .55);
+  padding: 34px 24px 24px;
+  border: 1px solid rgb(200 50 70 / .24);
+  border-radius: 32px;
+  background: linear-gradient(180deg, #1c0a0f, #0e0507);
+  box-shadow:
+    0 30px 80px -20px #000,
+    0 0 70px rgb(150 18 38 / .22),
+    inset 0 1px 0 rgb(255 255 255 / .06);
 }
 
 .card-brand {
@@ -102,57 +105,73 @@ button:disabled {
 }
 
 .brand-mark {
-  width: 66px;
-  height: 66px;
+  width: 76px;
+  height: 76px;
   margin: 0 auto;
   display: grid;
   place-items: center;
-  border: 1px solid hsl(0 74% 55% / .4);
   border-radius: 50%;
   color: white;
-  background: radial-gradient(circle at 30% 20%, #d93440, #8e111c 78%);
-  box-shadow: 0 0 30px hsl(0 72% 45% / .18);
+  background: radial-gradient(circle at 30% 22%, #e0334a, #9b1124 55%, #4d0812);
+  box-shadow:
+    0 0 0 7px rgb(190 30 50 / .12),
+    0 14px 36px rgb(170 20 40 / .55),
+    inset 0 1px 1px rgb(255 255 255 / .35);
 }
 
 .card-title {
-  margin: 14px 0 0;
+  margin: 20px 0 0;
   color: hsl(var(--foreground));
-  font: 700 25px/1.15 'Manrope', sans-serif;
-  letter-spacing: -.045em;
+  font: 700 28px/1.15 'Space Grotesk', sans-serif;
+  letter-spacing: -.01em;
 }
 
 .card-subtitle {
-  margin: 7px 0 0;
-  color: hsl(0 0% 48%);
-  font: 500 10px/1.4 var(--app-font-mono);
-  letter-spacing: .2em;
+  margin: 8px 0 0;
+  color: #a8878d;
+  font: 500 11px/1.4 var(--app-font-sans);
+  letter-spacing: .3em;
+}
+
+.card-description {
+  max-width: 310px;
+  margin: 16px 0 0;
+  color: #c9b3b7;
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.card-description strong {
+  color: #fff;
+  font-weight: 600;
 }
 
 .download-form {
   width: 100%;
-  margin-top: 31px;
+  margin-top: 26px;
 }
 
 .url-input-wrap {
-  min-height: 56px;
+  min-height: 54px;
   display: flex;
   align-items: center;
-  gap: 11px;
-  padding: 0 17px;
-  border: 1px solid hsl(0 0% 100% / .19);
+  gap: 12px;
+  padding: 0 20px;
+  border: 1px solid rgb(200 50 70 / .3);
   border-radius: 999px;
-  background: #111;
+  background: #190b0e;
+  box-shadow: inset 0 2px 8px rgb(0 0 0 / .5);
   transition: border-color .18s ease, box-shadow .18s ease;
 }
 
 .url-input-wrap:focus-within {
-  border-color: hsl(var(--accent) / .75);
-  box-shadow: 0 0 0 3px hsl(var(--accent) / .12);
+  border-color: #e23a52;
+  box-shadow: 0 0 0 3px rgb(226 58 82 / .22), inset 0 2px 8px rgb(0 0 0 / .5);
 }
 
 .url-input-icon {
   flex: none;
-  color: hsl(0 0% 58%);
+  color: #e0566a;
 }
 
 .url-input {
@@ -163,27 +182,28 @@ button:disabled {
   outline: 0;
   color: hsl(var(--foreground));
   background: transparent;
-  font: 12px var(--app-font-mono);
+  font: 400 15px var(--app-font-sans);
 }
 
 .url-input::placeholder {
-  color: hsl(0 0% 43%);
+  color: #9a8085;
 }
 
 .submit-button,
 .download-button {
-  min-height: 52px;
+  min-height: 54px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  border: 1px solid hsl(0 70% 58% / .6);
+  border: 0;
   border-radius: 999px;
   color: white;
-  background: linear-gradient(105deg, #c92030, #8f101d);
-  box-shadow: 0 7px 20px hsl(0 73% 35% / .2);
-  font-size: 13px;
-  font-weight: 700;
+  background: linear-gradient(135deg, #cc162e, #8a0f1d 70%, #6d0b17);
+  box-shadow: 0 14px 34px -8px rgb(204 22 46 / .6), inset 0 1px 0 rgb(255 255 255 / .28);
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: .02em;
   transition: background .18s ease, transform .18s ease, opacity .18s ease;
 }
 
@@ -194,7 +214,7 @@ button:disabled {
 
 .submit-button:hover:not(:disabled),
 .download-button:hover:not(:disabled) {
-  background: linear-gradient(105deg, #df2a3b, #a81524);
+  background: linear-gradient(135deg, #df2a3b, #a81524);
   transform: translateY(-1px);
 }
 
@@ -232,17 +252,29 @@ button:disabled {
   flex-wrap: wrap;
   justify-content: center;
   gap: 8px;
-  margin-top: 24px;
+  margin-top: 22px;
 }
 
 .service-tags span {
-  padding: 7px 12px;
-  border: 1px solid hsl(0 0% 100% / .08);
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 14px;
+  border: 1px solid rgb(200 50 70 / .22);
   border-radius: 999px;
-  color: hsl(0 0% 58%);
-  background: hsl(0 0% 100% / .025);
-  font: 10px var(--app-font-mono);
-  letter-spacing: .04em;
+  color: #d6c0c4;
+  background: rgb(190 30 50 / .07);
+  font-size: 12px;
+  letter-spacing: .03em;
+}
+
+.service-tags span::before {
+  width: 5px;
+  height: 5px;
+  flex: none;
+  border-radius: 50%;
+  background: #e23a52;
+  content: '';
 }
 
 .job-panel {
@@ -371,12 +403,19 @@ button:disabled {
 
 .card-footer {
   width: 100%;
-  margin-top: auto;
-  padding-top: 20px;
-  border-top: 1px solid hsl(0 0% 100% / .07);
-  color: hsl(0 0% 39%);
+  margin-top: 16px;
+  padding-top: 0;
+  color: #9a8589;
   text-align: center;
-  font: 10px var(--app-font-mono);
+  font: 12px var(--app-font-sans);
+  letter-spacing: .04em;
+}
+
+.card-divider {
+  width: 100%;
+  height: 1px;
+  margin-top: 22px;
+  background: linear-gradient(90deg, transparent, rgb(200 50 70 / .35), transparent);
 }
 
 .screen-reader {
@@ -409,26 +448,16 @@ input:focus-visible {
 }
 
 @media (max-width: 480px) {
-  .app-shell {
-    padding: 20px 0;
-  }
-
-  .main-content {
-    width: calc(100% - 36px);
-  }
-
   .downloader-card {
-    min-height: 620px;
-    padding: 32px 20px 22px;
-    border-radius: 32px;
+    padding: 32px 20px 24px;
   }
 
   .card-title {
-    font-size: 24px;
+    font-size: 26px;
   }
 
   .download-form {
-    margin-top: 28px;
+    margin-top: 26px;
   }
 
   .manual-result {

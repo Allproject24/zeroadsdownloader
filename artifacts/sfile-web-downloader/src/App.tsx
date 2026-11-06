@@ -149,8 +149,12 @@ function Home() {
         <section className="downloader-card" aria-labelledby="page-title">
           <div className="card-brand" data-testid="header-brand">
             <div className="brand-mark" aria-hidden="true"><CloudDownload size={25} strokeWidth={2} /></div>
-            <h1 id="page-title" className="card-title" data-testid="text-page-title">Sfile Downloader</h1>
-            <p className="card-subtitle">SHORT LINK</p>
+            <h1 id="page-title" className="card-title" data-testid="text-page-title">ZeroAds Downloader</h1>
+            <p className="card-subtitle">UNDUH SEMUA SHORT LINK</p>
+            <p className="card-description">
+              Mendukung <strong>SFL.GL</strong>, <strong>SFILE.CO</strong>, <strong>SFILE.MOBI</strong>,
+              <strong> SAFELINKU</strong>, dan <strong>SAFILEKU</strong>.
+            </p>
           </div>
 
           <form className="download-form" onSubmit={submitUrl} noValidate>
@@ -179,7 +183,7 @@ function Home() {
                 ? <><LoaderCircle size={14} className="spin-icon" /> Memulai</>
                 : isActive
                   ? <>Memproses</>
-                  : <>Unduh</>}
+                  : <><ArrowDownToLine size={18} aria-hidden="true" /> Unduh</>}
             </button>
             {inputError && <p className="input-error" id="url-error" data-testid="text-url-error">{inputError}</p>}
             {startError && <div className="error-callout" role="alert" data-testid="alert-start-error"><CircleAlert size={15} />{startError}</div>}
@@ -187,9 +191,10 @@ function Home() {
 
           {!activeJobId && (
             <div className="service-tags" aria-label="Tautan yang didukung">
-              <span>SFL.GL</span>
-              <span>SFILE.CO</span>
-              <span>SAFELINKU</span>
+              <span>Bebas Iklan</span>
+              <span>Bebas Shortlink</span>
+              <span>Cepat &amp; Mudah</span>
+              <span>Support All Device</span>
             </div>
           )}
 
@@ -253,7 +258,8 @@ function Home() {
             </section>
           )}
 
-          <div className="card-footer">© 2026 Sfile Downloader</div>
+          <div className="card-divider" aria-hidden="true" />
+          <div className="card-footer">© 2026 ZeroAds Downloader</div>
         </section>
       </main>
     </div>
