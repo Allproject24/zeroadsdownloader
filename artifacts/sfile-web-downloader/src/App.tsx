@@ -6,7 +6,6 @@ import {
   CircleAlert,
   CloudDownload,
   ExternalLink,
-  File,
   Link2,
   LoaderCircle,
 } from 'lucide-react';
@@ -146,57 +145,63 @@ function Home() {
 
   return (
     <div className="app-shell">
-      <header className="site-header" data-testid="header-brand">
-        <div className="brand-lockup">
-          <div className="brand-mark" aria-hidden="true"><CloudDownload size={18} strokeWidth={2.2} /></div>
-          <div className="brand-name">sfile</div>
-        </div>
-      </header>
-
       <main className="main-content">
-        <section className="workspace-grid" aria-label="Ruang kerja unduhan">
-          <div>
-            <form className="panel submit-panel" onSubmit={submitUrl} noValidate>
-              <h1 className="panel-title" data-testid="text-page-title">Unduh tautan</h1>
-              <label className="url-label" htmlFor="sfile-url">Tautan</label>
-              <div className="url-input-wrap">
-                <Link2 className="url-input-icon" size={16} aria-hidden="true" />
-                <input
-                  id="sfile-url"
-                  className="url-input"
-                  data-testid="input-sfile-url"
-                  type="url"
-                  inputMode="url"
-                  autoComplete="url"
-                  maxLength={2048}
-                  placeholder="https://sfl.gl/..."
-                  value={url}
-                  onChange={(event) => {
-                    setUrl(event.target.value);
-                    if (inputError) setInputError('');
-                  }}
-                  aria-describedby={inputError ? 'url-error' : undefined}
-                />
-              </div>
-              <button className="submit-button" data-testid="button-start-download" type="submit" disabled={startDownload.isPending || isActive}>
-                  {startDownload.isPending
-                    ? <><LoaderCircle size={14} className="spin-icon" /> Memulai</>
-                    : isActive
-                      ? <>Memproses</>
-                      : <>Unduh</>}
-              </button>
-              {inputError && <p className="input-error" id="url-error" data-testid="text-url-error">{inputError}</p>}
-              {startError && <div className="error-callout" role="alert" data-testid="alert-start-error"><CircleAlert size={15} />{startError}</div>}
-            </form>
+        <section className="downloader-card" aria-labelledby="page-title">
+          <div className="card-brand" data-testid="header-brand">
+            <div className="brand-mark" aria-hidden="true"><CloudDownload size={25} strokeWidth={2} /></div>
+            <h1 id="page-title" className="card-title" data-testid="text-page-title">Sfile Downloader</h1>
+            <p className="card-subtitle">SHORT LINK</p>
+          </div>
 
-            {activeJobId && <section className="panel job-panel" aria-live="polite" data-testid="panel-job-status">
-              {activeJobId && jobQuery.isLoading && (
+          <form className="download-form" onSubmit={submitUrl} noValidate>
+            <label className="screen-reader" htmlFor="sfile-url">Tautan Sfile</label>
+            <div className="url-input-wrap">
+              <Link2 className="url-input-icon" size={16} aria-hidden="true" />
+              <input
+                id="sfile-url"
+                className="url-input"
+                data-testid="input-sfile-url"
+                type="url"
+                inputMode="url"
+                autoComplete="url"
+                maxLength={2048}
+                placeholder="https://sfl.gl/xxxxx"
+                value={url}
+                onChange={(event) => {
+                  setUrl(event.target.value);
+                  if (inputError) setInputError('');
+                }}
+                aria-describedby={inputError ? 'url-error' : undefined}
+              />
+            </div>
+            <button className="submit-button" data-testid="button-start-download" type="submit" disabled={startDownload.isPending || isActive}>
+              {startDownload.isPending
+                ? <><LoaderCircle size={14} className="spin-icon" /> Memulai</>
+                : isActive
+                  ? <>Memproses</>
+                  : <>Unduh</>}
+            </button>
+            {inputError && <p className="input-error" id="url-error" data-testid="text-url-error">{inputError}</p>}
+            {startError && <div className="error-callout" role="alert" data-testid="alert-start-error"><CircleAlert size={15} />{startError}</div>}
+          </form>
+
+          {!activeJobId && (
+            <div className="service-tags" aria-label="Tautan yang didukung">
+              <span>SFL.GL</span>
+              <span>SFILE.CO</span>
+              <span>SAFELINKU</span>
+            </div>
+          )}
+
+          {activeJobId && (
+            <section className="job-panel" aria-live="polite" data-testid="panel-job-status">
+              {jobQuery.isLoading && !job && (
                 <div className="loading-state" role="status" data-testid="state-loading">
                   <LoaderCircle className="spin-icon" size={19} aria-hidden="true" />
                   <span>Memproses...</span>
                 </div>
               )}
-              {activeJobId && jobQuery.isError && (
+              {jobQuery.isError && (
                 <div className="result-error" data-testid="state-job-error">
                   <span>{jobQuery.error instanceof Error ? jobQuery.error.message : 'Status tidak dapat dimuat.'}</span>
                   <button className="retry-button" type="button" data-testid="button-retry-status" onClick={() => void jobQuery.refetch()}>Coba lagi</button>
@@ -212,10 +217,11 @@ function Home() {
                 </div>
               )}
               {job?.status === 'completed' && (
-                <div className="terminal-result success-result" data-testid="summary-downloaded-file">
+                <div className="result-card success-result" data-testid="summary-downloaded-file">
+                  <Check size={17} aria-hidden="true" />
                   <div className="result-copy">
                     <strong data-testid="text-file-name">{job.fileName || 'File siap'}</strong>
-                    <span className="file-size" data-testid="text-file-size">{formatSize(job.fileSize)}</span>
+                    <span data-testid="text-file-size">{formatSize(job.fileSize)}</span>
                   </div>
                   <button className="download-button" type="button" data-testid="button-save-file" onClick={() => void saveFile()} disabled={fileQuery.isFetching}>
                     {fileQuery.isFetching ? <LoaderCircle size={14} className="spin-icon" /> : <ArrowDownToLine size={14} />}
@@ -225,7 +231,7 @@ function Home() {
                 </div>
               )}
               {manualSafefilekuUrl && (
-                <div className="terminal-result manual-result" data-testid="text-terminal-guidance">
+                <div className="result-card manual-result" data-testid="text-terminal-guidance">
                   <span>Safefileku meminta verifikasi.</span>
                   <a
                     className="download-button manual-open-link"
@@ -239,12 +245,15 @@ function Home() {
                 </div>
               )}
               {job && !isActive && job.status !== 'completed' && !manualSafefilekuUrl && (
-                <div className="terminal-result error-result" data-testid="text-terminal-guidance">
+                <div className="result-card error-result" data-testid="text-terminal-guidance">
+                  <CircleAlert size={17} aria-hidden="true" />
                   <span>{job.error || (job.status === 'cancelled' ? 'Dibatalkan.' : 'Tautan tidak dapat diproses.')}</span>
                 </div>
               )}
-            </section>}
-          </div>
+            </section>
+          )}
+
+          <div className="card-footer">© 2026 Sfile Downloader</div>
         </section>
       </main>
     </div>

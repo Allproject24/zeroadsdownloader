@@ -20,3 +20,9 @@ Keep interface copy brief and neutral; avoid promotional or exaggerated wording 
 **Why:** The user said the earlier presentation felt too busy and the wording too overblown compared with their reference.
 
 **How to apply:** Prefer a short page title, one direct input label, a simple action label, and concise result text.
+
+Use the user's chosen home-page direction: one centered rounded card, brand mark, short title, link field, primary button, and compact supported-domain tags on a near-black background with red accents.
+
+**Why:** The user explicitly asked to match their reference screenshot with a red-black theme.
+
+**How to apply:** Keep the visual hierarchy close to that single-card layout; do not add extra sections or prominent promotional copy.
