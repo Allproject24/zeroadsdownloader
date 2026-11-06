@@ -65,7 +65,7 @@ const SUPPORTED_START_HOSTS = [
   "safefileku.com",
 ];
 const FLOW_HOSTS = [...SUPPORTED_START_HOSTS, "app.khaddavi.net"];
-const SAFE_POPUP_HOSTS = SUPPORTED_START_HOSTS;
+const SAFE_POPUP_HOSTS = [...SUPPORTED_START_HOSTS, "app.khaddavi.net"];
 const FILE_HOSTS = ["sfile.co", "sfile.mobi", "safefileku.com"];
 const MAX_ACTIVE_JOBS = 2;
 const MAX_QUEUED_JOBS = 4;
