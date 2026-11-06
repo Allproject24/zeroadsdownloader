@@ -4,7 +4,6 @@ import {
   ArrowDownToLine,
   Check,
   CircleAlert,
-  CloudDownload,
   Copy,
   ExternalLink,
   Link2,
@@ -20,6 +19,7 @@ import {
 } from '@workspace/api-client-react';
 import type { DownloadJob } from '@workspace/api-client-react';
 import { ErrorBoundary } from '@/components/error-boundary';
+import GhostMark from '@/components/GhostMark';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import NotFound from '@/pages/not-found';
@@ -173,7 +173,7 @@ function Home() {
       <main className="main-content">
         <section className="downloader-card" aria-labelledby="page-title">
           <div className="card-brand" data-testid="header-brand">
-            <div className="brand-mark" aria-hidden="true"><CloudDownload size={21} strokeWidth={2} /></div>
+            <div className="brand-mark" aria-hidden="true"><GhostMark /></div>
             <h1 id="page-title" className="card-title" data-testid="text-page-title">ZeroAds Downloader</h1>
             <p className="card-subtitle">BYPASS SEMUA SHORT LINK</p>
             <p className="card-description">
