@@ -235,15 +235,22 @@ function getManualSafefilekuUrl(value: string): string | null {
     const url = new URL(value);
     if (
       url.protocol !== "https:" ||
-      url.hostname.toLowerCase() !== "safefileku.com" ||
+      !["safefileku.com", "www.safefileku.com"].includes(
+        url.hostname.toLowerCase(),
+      ) ||
       !/^\/download\/[A-Za-z0-9_-]+\/?$/.test(url.pathname)
     ) {
       return null;
     }
-    return `${url.origin}${url.pathname}`.slice(0, 300);
+    return `https://safefileku.com${url.pathname}`.slice(0, 300);
   } catch {
     return null;
   }
+}
+
+function rememberManualSafefilekuUrl(job: DownloadJob, value: string): void {
+  const manualUrl = getManualSafefilekuUrl(value);
+  if (manualUrl) job.manualUrl = manualUrl;
 }
 
 function sanitizeFilename(value: string): string {
@@ -533,6 +540,15 @@ async function runBrowserFlow(job: DownloadJob): Promise<void> {
     target.on("request", (request) => {
       void (async () => {
         const rawUrl = request.url();
+        if (
+          request.isNavigationRequest() &&
+          request.frame() === target.mainFrame()
+        ) {
+          rememberManualSafefilekuUrl(job, rawUrl);
+          for (const redirectedRequest of request.redirectChain()) {
+            rememberManualSafefilekuUrl(job, redirectedRequest.url());
+          }
+        }
         if (/^(data|blob|about):/i.test(rawUrl)) {
           await request.continue();
           return;
@@ -585,6 +601,7 @@ async function runBrowserFlow(job: DownloadJob): Promise<void> {
       if (frame !== target.mainFrame()) return;
       const url = frame.url();
       if (!url || url === "about:blank") return;
+      rememberManualSafefilekuUrl(job, url);
       if (!isFlowUrl(url)) {
         if (target !== page && passivePages.has(target)) {
           if (!passivePageNotices.has(target)) {
@@ -1064,7 +1081,7 @@ async function inspectHumanVerification(
 
 function blockDownloadAtHumanVerification(job: DownloadJob, url: string): void {
   job.status = "blocked";
-  job.manualUrl = getManualSafefilekuUrl(url);
+  rememberManualSafefilekuUrl(job, url);
   job.error = job.manualUrl
     ? "Safefileku meminta verifikasi manusia. Job server berhenti di sini; verifikasi dan unduhan dilakukan langsung di Safefileku."
     : "Cloudflare meminta verifikasi manusia. Proses berhenti di sini dan tidak akan mencentang atau melewati verifikasi.";
