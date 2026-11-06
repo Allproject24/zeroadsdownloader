@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowDownToLine,
@@ -9,6 +9,7 @@ import {
   ExternalLink,
   Link2,
   LoaderCircle,
+  X,
 } from 'lucide-react';
 import {
   getGetDownloadQueryKey,
@@ -54,6 +55,7 @@ function getManualSafefilekuUrl(job: DownloadJob | undefined): string | null {
 
 function Home() {
   const [url, setUrl] = useState('');
+  const urlInputRef = useRef<HTMLInputElement>(null);
   const [activeJobId, setActiveJobId] = useState('');
   const [inputError, setInputError] = useState('');
   const [startError, setStartError] = useState('');
@@ -185,6 +187,7 @@ function Home() {
               <Link2 className="url-input-icon" size={16} aria-hidden="true" />
               <input
                 id="sfile-url"
+                ref={urlInputRef}
                 className="url-input"
                 data-testid="input-sfile-url"
                 type="url"
@@ -199,6 +202,22 @@ function Home() {
                 }}
                 aria-describedby={inputError ? 'url-error' : undefined}
               />
+              {url && (
+                <button
+                  className="clear-url-button"
+                  data-testid="button-clear-url"
+                  type="button"
+                  aria-label="Hapus URL"
+                  title="Hapus URL"
+                  onClick={() => {
+                    setUrl('');
+                    setInputError('');
+                    urlInputRef.current?.focus();
+                  }}
+                >
+                  <X size={16} aria-hidden="true" />
+                </button>
+              )}
             </div>
             <button
               className="submit-button"
