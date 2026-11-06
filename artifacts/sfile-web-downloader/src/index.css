@@ -219,6 +219,15 @@ button:disabled {
   margin-top: 12px;
 }
 
+.button-timer {
+  margin-left: 3px;
+  padding-left: 9px;
+  border-left: 1px solid rgb(255 255 255 / .32);
+  color: rgb(255 255 255 / .82);
+  font-size: .9em;
+  font-variant-numeric: tabular-nums;
+}
+
 .submit-button:hover:not(:disabled),
 .download-button:hover:not(:disabled) {
   background: linear-gradient(135deg, #df2a3b, #a81524);
@@ -290,17 +299,10 @@ button:disabled {
 }
 
 .loading-state {
-  min-height: 46px;
   display: flex;
   align-items: center;
-  gap: 10px;
-  color: hsl(0 0% 78%);
-  font-size: 12px;
-}
-
-.loading-state > svg {
-  flex: none;
-  color: hsl(var(--accent));
+  justify-content: flex-end;
+  margin-top: 8px;
 }
 
 .cancel-button,

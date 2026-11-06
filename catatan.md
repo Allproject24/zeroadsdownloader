@@ -49,6 +49,7 @@ pnpm --filter @workspace/api-spec run codegen
 - Jaga antarmuka tetap sederhana dan ringkas: konten terpusat tanpa bingkai luar, ukuran nyaman di ponsel, serta aksen merah tanpa glow berlebihan.
 - Kolom URL harus tetap gelap saat fokus/autofill dan hanya memakai indikator fokus membulat; jangan tampilkan outline persegi pada input.
 - Pertahankan redaksi referensi: “Unduh dari SFL.GL · SFILE.CO · SAFELINKU · dan lain-lain”.
+- Empat label fitur tetap terlihat selama unduhan berjalan; tampilkan satu spinner saja di tombol proses dengan timer mulai dari `1s`.
 - Jangan tampilkan urutan klik dan waktu tunggu internal selama unduhan berlangsung.
 - Pertahankan pengambilan status dengan `cache: no-store` agar tampilan tidak memakai status lama.
 - Perubahan alur download harus tetap memvalidasi domain dan menjaga pembatalan, status gagal, serta panduan verifikasi manual.

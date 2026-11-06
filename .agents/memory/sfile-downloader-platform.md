@@ -25,4 +25,4 @@ Use the user's chosen ZeroAds Downloader reference: centered content without an 
 
 **Why:** The user explicitly asked the app to match the supplied ZeroAds Downloader design.
 
-**How to apply:** Keep the reference wording intact when requested, avoid an outer card frame, keep the mobile layout compact with restrained red glow, prevent square input focus/autofill backgrounds, and show a spinner in the download button while a job is active.
+**How to apply:** Keep the reference wording and feature chips visible during processing, avoid an outer card frame, keep the mobile layout compact with restrained red glow, prevent square input focus/autofill backgrounds, and show one spinner plus an elapsed-seconds timer in the download button.

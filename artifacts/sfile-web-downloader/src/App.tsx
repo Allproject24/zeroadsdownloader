@@ -1,4 +1,4 @@
-import { useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowDownToLine,
@@ -58,6 +58,8 @@ function Home() {
   const [inputError, setInputError] = useState('');
   const [startError, setStartError] = useState('');
   const [downloadError, setDownloadError] = useState('');
+  const [startedAt, setStartedAt] = useState<number | null>(null);
+  const [elapsedSeconds, setElapsedSeconds] = useState(1);
   const queryClientInstance = useQueryClient();
   const startDownload = useStartDownload();
   const cancelDownload = useCancelDownload();
@@ -102,6 +104,9 @@ function Home() {
       setInputError('Tautan ini melebihi batas 2.048 karakter.');
       return;
     }
+    setStartedAt(Date.now());
+    setElapsedSeconds(1);
+    setActiveJobId('');
     startDownload.mutate({ data: { url: url.trim() } }, {
       onSuccess: (createdJob) => {
         setActiveJobId(createdJob.id);
@@ -109,6 +114,8 @@ function Home() {
         queryClientInstance.setQueryData(getGetDownloadQueryKey(createdJob.id), createdJob);
       },
       onError: (error) => {
+        setStartedAt(null);
+        setElapsedSeconds(1);
         setStartError(error instanceof Error ? error.message : 'Permintaan tidak dapat dimulai. Silakan coba lagi.');
       },
     });
@@ -142,6 +149,20 @@ function Home() {
   };
 
   const isActive = job?.status === 'queued' || job?.status === 'running';
+  const isProcessing =
+    startDownload.isPending ||
+    isActive ||
+    (Boolean(activeJobId) && jobQuery.isLoading && !job);
+
+  useEffect(() => {
+    if (startedAt === null || !isProcessing) return;
+
+    const intervalId = window.setInterval(() => {
+      setElapsedSeconds(Math.floor((Date.now() - startedAt) / 1000) + 1);
+    }, 1000);
+
+    return () => window.clearInterval(intervalId);
+  }, [isProcessing, startedAt]);
 
   return (
     <div className="app-shell">
@@ -177,44 +198,42 @@ function Home() {
                 aria-describedby={inputError ? 'url-error' : undefined}
               />
             </div>
-            <button className="submit-button" data-testid="button-start-download" type="submit" disabled={startDownload.isPending || isActive}>
-              {startDownload.isPending
-                ? <><LoaderCircle size={14} className="spin-icon" /> Memulai</>
-                : isActive
-                  ? <><LoaderCircle size={14} className="spin-icon" /> Memproses</>
-                  : <><ArrowDownToLine size={18} aria-hidden="true" /> Unduh</>}
+            <button
+              className="submit-button"
+              data-testid="button-start-download"
+              type="submit"
+              disabled={isProcessing}
+              aria-busy={isProcessing}
+            >
+              {isProcessing
+                ? <>
+                    <LoaderCircle size={14} className="spin-icon" aria-hidden="true" />
+                    <span>Memproses</span>
+                    <span className="button-timer" data-testid="text-elapsed-time" aria-live="off">{elapsedSeconds}s</span>
+                  </>
+                : <><ArrowDownToLine size={18} aria-hidden="true" /> Unduh</>}
             </button>
             {inputError && <p className="input-error" id="url-error" data-testid="text-url-error">{inputError}</p>}
             {startError && <div className="error-callout" role="alert" data-testid="alert-start-error"><CircleAlert size={15} />{startError}</div>}
           </form>
 
-          {!activeJobId && (
-            <div className="service-tags" aria-label="Tautan yang didukung">
-              <span>Bebas Iklan</span>
-              <span>Bebas Shortlink</span>
-              <span>Cepat &amp; Mudah</span>
-              <span>Support All Device</span>
-            </div>
-          )}
+          <div className="service-tags" aria-label="Keunggulan layanan">
+            <span>Bebas Iklan</span>
+            <span>Bebas Shortlink</span>
+            <span>Cepat &amp; Mudah</span>
+            <span>Support All Device</span>
+          </div>
 
           {activeJobId && (
             <section className="job-panel" aria-live="polite" data-testid="panel-job-status">
-              {jobQuery.isLoading && !job && (
-                <div className="loading-state" role="status" data-testid="state-loading">
-                  <LoaderCircle className="spin-icon" size={19} aria-hidden="true" />
-                  <span>Memproses...</span>
-                </div>
-              )}
               {jobQuery.isError && (
                 <div className="result-error" data-testid="state-job-error">
                   <span>{jobQuery.error instanceof Error ? jobQuery.error.message : 'Status tidak dapat dimuat.'}</span>
                   <button className="retry-button" type="button" data-testid="button-retry-status" onClick={() => void jobQuery.refetch()}>Coba lagi</button>
                 </div>
               )}
-              {job && isActive && (
-                <div className="loading-state" role="status" data-testid="state-download-loading">
-                  <LoaderCircle className="spin-icon" size={19} aria-hidden="true" />
-                  <span>Memproses...</span>
+              {isProcessing && (
+                <div className="loading-state" data-testid="state-download-loading">
                   <button className="cancel-button" type="button" data-testid="button-cancel-download" onClick={cancelActiveJob} disabled={cancelDownload.isPending}>
                     {cancelDownload.isPending ? 'Menghentikan' : 'Batalkan'}
                   </button>
