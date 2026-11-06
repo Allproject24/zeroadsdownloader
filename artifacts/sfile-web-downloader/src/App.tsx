@@ -86,6 +86,7 @@ function Home() {
       },
       queryKey: getGetDownloadQueryKey(activeJobId),
     },
+    request: { cache: 'no-store' },
   });
   const job = jobQuery.data;
   const fileQuery = useGetDownloadedFile(activeJobId, {

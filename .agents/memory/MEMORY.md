@@ -1,1 +1,2 @@
 - [Sfile downloader platform](sfile-downloader-platform.md) — Keep link handling in the web app itself; do not require 1DM or another external download manager.
+- [Downloader runtime timeouts](sfile-downloader-runtime.md) — Bound browser commands and disable status caching so slow clicks and polling do not look stuck.

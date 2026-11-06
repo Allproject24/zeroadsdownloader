@@ -52,6 +52,7 @@ router.get("/downloads/:jobId", (req, res): void => {
     res.status(404).json({ error: "Unduhan tidak ditemukan atau sudah kedaluwarsa." });
     return;
   }
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
   res.json(GetDownloadResponse.parse(job));
 });
 
@@ -86,7 +87,7 @@ router.get("/downloads/:jobId/file", async (req, res): Promise<void> => {
     return;
   }
 
-  res.setHeader("Cache-Control", "no-store");
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
   res.setHeader("Content-Length", String(file.fileSize));
   res.download(file.path, file.fileName, (error) => {
     if (error) {

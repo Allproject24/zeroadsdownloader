@@ -68,10 +68,11 @@ const MAX_ACTIVE_JOBS = 2;
 const MAX_QUEUED_JOBS = 4;
 const MAX_BROWSER_TABS = 12;
 const MAX_OPEN_CLICKS_PER_TAB = 3;
-const MAX_FLOW_TIME_MS = 3 * 60 * 1000;
+const MAX_FLOW_TIME_MS = 2 * 60 * 1000;
 const MAX_FILE_BYTES = 500 * 1024 * 1024;
 const JOB_TTL_MS = 20 * 60 * 1000;
 const WAIT_AFTER_CLICK_MS = 10_000;
+const BROWSER_PROTOCOL_TIMEOUT_MS = 15_000;
 const jobs = new Map<string, DownloadJob>();
 const queuedWorkers: Array<() => void> = [];
 let activeWorkers = 0;
@@ -297,6 +298,7 @@ async function runJob(job: DownloadJob): Promise<void> {
     job.browser = await puppeteer.launch({
       executablePath,
       headless: true,
+      protocolTimeout: BROWSER_PROTOCOL_TIMEOUT_MS,
       args: [
         "--no-sandbox",
         "--disable-setuid-sandbox",
@@ -512,7 +514,25 @@ async function runBrowserFlow(job: DownloadJob): Promise<void> {
       currentUrl,
     );
     const priorUrl = current.url();
-    await action.handle.click({ delay: 40 }).catch(() => undefined);
+    try {
+      await action.handle.click({ delay: 40 });
+    } catch (error) {
+      const errorText =
+        error instanceof Error ? `${error.name} ${error.message}` : String(error);
+      if (/timeout|timed out/i.test(errorText)) {
+        job.status = "failed";
+        job.error = `Halaman tidak merespons saat tombol “${action.label}” diklik. Proses dihentikan setelah 15 detik.`;
+        job.message = job.error;
+        addStep(job, "notice", job.error, currentUrl);
+        break;
+      }
+      addStep(
+        job,
+        "notice",
+        `Klik tombol “${action.label}” tidak terkonfirmasi; memeriksa tab yang terbuka.`,
+        currentUrl,
+      );
+    }
     addStep(
       job,
       "wait",
@@ -557,7 +577,7 @@ async function runBrowserFlow(job: DownloadJob): Promise<void> {
       }
     }
     if (Date.now() - startedAt >= MAX_FLOW_TIME_MS) {
-      job.error = "Alur melewati batas waktu tiga menit.";
+      job.error = "Alur melewati batas waktu dua menit.";
     } else if (uniqueTabs > MAX_BROWSER_TABS) {
       job.error = "Alur membuka terlalu banyak tab; proses dihentikan.";
     } else if (!job.filePath) {
