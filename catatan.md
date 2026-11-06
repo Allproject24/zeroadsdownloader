@@ -46,7 +46,8 @@ pnpm --filter @workspace/api-spec run codegen
 
 ## Catatan pemeliharaan
 
-- Jaga antarmuka tetap sederhana: satu kartu utama, tema hitam-merah, dan status unduhan yang ringkas.
+- Jaga antarmuka tetap sederhana: konten terpusat tanpa bingkai kartu luar, tema hitam-merah, dan status unduhan yang ringkas.
+- Pertahankan redaksi referensi: “Unduh dari SFL.GL · SFILE.CO · SAFELINKU · dan lain-lain”.
 - Jangan tampilkan urutan klik dan waktu tunggu internal selama unduhan berlangsung.
 - Pertahankan pengambilan status dengan `cache: no-store` agar tampilan tidak memakai status lama.
 - Perubahan alur download harus tetap memvalidasi domain dan menjaga pembatalan, status gagal, serta panduan verifikasi manual.

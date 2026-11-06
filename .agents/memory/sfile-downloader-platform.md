@@ -21,8 +21,8 @@ Keep interface copy brief and neutral; avoid promotional or exaggerated wording 
 
 **How to apply:** Prefer a short page title, one direct input label, a simple action label, and concise result text.
 
-Use the user's chosen ZeroAds Downloader reference: one centered rounded card, red download mark, uppercase descriptor, link field, red action button, compact feature chips, and a near-black garnet background.
+Use the user's chosen ZeroAds Downloader reference: centered content without an outer card frame, red download mark, uppercase descriptor, link field, red action button, compact feature chips, and a near-black garnet background.
 
 **Why:** The user explicitly asked the app to match the supplied ZeroAds Downloader design.
 
-**How to apply:** Keep the single-card hierarchy and concise copy; make any supported-domain claims match the actual server allowlist.
+**How to apply:** Keep the reference wording intact when requested, avoid adding an outer card border/background, and show a spinner in the download button while a job is active.

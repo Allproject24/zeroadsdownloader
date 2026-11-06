@@ -152,8 +152,7 @@ function Home() {
             <h1 id="page-title" className="card-title" data-testid="text-page-title">ZeroAds Downloader</h1>
             <p className="card-subtitle">UNDUH SEMUA SHORT LINK</p>
             <p className="card-description">
-              Mendukung <strong>SFL.GL</strong>, <strong>SFILE.CO</strong>, <strong>SFILE.MOBI</strong>,
-              <strong> SAFELINKU</strong>, dan <strong>SAFILEKU</strong>.
+              Unduh dari <strong>SFL.GL</strong> · <strong>SFILE.CO</strong> · <strong>SAFELINKU</strong> · dan lain-lain
             </p>
           </div>
 
@@ -182,7 +181,7 @@ function Home() {
               {startDownload.isPending
                 ? <><LoaderCircle size={14} className="spin-icon" /> Memulai</>
                 : isActive
-                  ? <>Memproses</>
+                  ? <><LoaderCircle size={14} className="spin-icon" /> Memproses</>
                   : <><ArrowDownToLine size={18} aria-hidden="true" /> Unduh</>}
             </button>
             {inputError && <p className="input-error" id="url-error" data-testid="text-url-error">{inputError}</p>}
