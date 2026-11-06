@@ -1,23 +1,18 @@
 import { useState, type FormEvent, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import {
-  ArrowDown,
   ArrowDownToLine,
   ArrowRight,
   Check,
   CircleAlert,
-  Clock3,
   CloudDownload,
   ExternalLink,
   File,
   FileCheck2,
-  FileSearch,
   Link2,
   LoaderCircle,
   LockKeyhole,
-  RotateCcw,
   ShieldCheck,
-  Sparkles,
 } from 'lucide-react';
 import {
   getGetDownloadQueryKey,
@@ -27,7 +22,7 @@ import {
   useGetDownloadedFile,
   useStartDownload,
 } from '@workspace/api-client-react';
-import type { DownloadJob, DownloadStep } from '@workspace/api-client-react';
+import type { DownloadJob } from '@workspace/api-client-react';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -71,18 +66,6 @@ function getManualSafefilekuUrl(job: DownloadJob | undefined): string | null {
     return url.href;
   } catch {
     return null;
-  }
-}
-
-function stepIcon(kind: DownloadStep['kind']) {
-  switch (kind) {
-    case 'open': return <ExternalLink size={12} />;
-    case 'wait': return <Clock3 size={12} />;
-    case 'scroll': return <ArrowDown size={12} />;
-    case 'click': return <ArrowRight size={12} />;
-    case 'redirect': return <RotateCcw size={12} />;
-    case 'download': return <ArrowDownToLine size={12} />;
-    default: return <CircleAlert size={12} />;
   }
 }
 
@@ -176,7 +159,6 @@ function Home() {
   };
 
   const isActive = job?.status === 'queued' || job?.status === 'running';
-  const isTerminal = job && !isActive;
   const statusTone = job?.status === 'failed' || job?.status === 'blocked'
     ? 'failed'
     : job?.status === 'cancelled' ? 'cancelled' : '';
@@ -197,23 +179,11 @@ function Home() {
       <main className="main-content">
         <section className="hero" aria-labelledby="hero-title">
           <div>
-            <div className="eyebrow" data-testid="text-eyebrow">Tautan singkat, jadi mudah</div>
-            <h1 id="hero-title" data-testid="text-page-title">File Anda,<br /><span>tanpa berputar-putar.</span></h1>
+            <div className="eyebrow" data-testid="text-eyebrow">Pengunduh tautan Sfile</div>
+            <h1 id="hero-title" data-testid="text-page-title">Unduh file<br /><span>dengan mudah.</span></h1>
             <p className="hero-copy" data-testid="text-page-description">
-              Tempel tautan Sfile yang didukung. Kami akan mengikuti setiap langkah dan menunjukkan prosesnya hingga file ditemukan.
+              Tempel tautan Sfile untuk memulai. Jika tujuan meminta verifikasi, kami akan memberi tahu cara melanjutkan.
             </p>
-          </div>
-          <div className="hero-art" aria-hidden="true">
-            <div className="orbit" />
-            <Sparkles className="spark spark-one" size={18} />
-            <Sparkles className="spark spark-two" size={14} />
-            <div className="artifact-card">
-              <FileCheck2 className="artifact-icon" size={34} strokeWidth={1.5} />
-              <div className="artifact-line" />
-              <div className="artifact-line short" />
-              <div className="artifact-line" />
-              <div className="artifact-tag">SIAP DISIMPAN</div>
-            </div>
           </div>
         </section>
 
@@ -222,12 +192,12 @@ function Home() {
             <form className="panel submit-panel" onSubmit={submitUrl} noValidate>
               <div className="panel-topline">
                 <div>
-                  <div className="panel-kicker">Mulai di sini</div>
+                  <div className="panel-kicker">Mulai unduhan</div>
                   <h2 className="panel-title">Tempel tautan Sfile</h2>
                 </div>
-                <span className="step-number">01 / 01</span>
+                <span className="secure-chip"><ShieldCheck size={13} /> Aman</span>
               </div>
-              <label className="url-label" htmlFor="sfile-url">Tautan singkat</label>
+              <label className="url-label" htmlFor="sfile-url">Tautan Anda</label>
               <div className="url-input-wrap">
                 <Link2 className="url-input-icon" size={16} aria-hidden="true" />
                 <input
@@ -246,32 +216,32 @@ function Home() {
                   }}
                   aria-describedby={inputError ? 'url-error' : 'url-help'}
                 />
-                <button className="submit-button" data-testid="button-start-download" type="submit" disabled={startDownload.isPending || isActive}>
+              </div>
+              <button className="submit-button" data-testid="button-start-download" type="submit" disabled={startDownload.isPending || isActive}>
                   {startDownload.isPending
                     ? <><LoaderCircle size={14} className="spin-icon" /> Memulai</>
                     : isActive
-                      ? <>Proses berlangsung <ArrowRight size={14} /></>
-                      : <>Ikuti tautan <ArrowRight size={14} /></>}
-                </button>
-              </div>
+                      ? <>Sedang diproses</>
+                      : <>Mulai unduh <ArrowRight size={14} /></>}
+              </button>
               {inputError && <p className="input-error" id="url-error" data-testid="text-url-error">{inputError}</p>}
               {startError && <div className="error-callout" role="alert" data-testid="alert-start-error"><CircleAlert size={15} />{startError}</div>}
               <p className="field-help" id="url-help" data-testid="text-url-help">
                 <ShieldCheck size={13} />
                 {isActive
-                  ? 'Selesaikan atau batalkan proses aktif sebelum mengirim tautan lain.'
-                  : 'Hanya tautan singkat Sfile yang didukung. Kami akan memberi tahu jika tautan tidak dapat diikuti.'}
+                  ? 'Proses sedang berjalan. Tunggu hingga hasilnya muncul.'
+                  : 'Mendukung tautan sfl.gl, safelinku.com, sfile.co, sfile.mobi, dan safefileku.com.'}
               </p>
-              <div className="privacy-line" data-testid="text-processing-note"><LockKeyhole size={13} /> Kami hanya memproses tautan yang Anda kirim. Tak perlu masuk.</div>
+              <div className="privacy-line" data-testid="text-processing-note"><LockKeyhole size={13} /> Tidak perlu masuk atau memasang aplikasi tambahan.</div>
             </form>
 
             <section className="panel job-panel" aria-live="polite" data-testid="panel-job-status">
               {!activeJobId && (
                 <div className="empty-state" data-testid="state-empty">
-                  <div className="empty-symbol"><FileSearch size={19} /></div>
+                  <div className="empty-symbol"><FileCheck2 size={19} /></div>
                   <div className="empty-copy">
-                    <strong>Belum ada proses</strong>
-                    <p>Rute dan progres tautan akan muncul di sini setelah Anda mengirimkannya.</p>
+                    <strong>Siap memproses tautan</strong>
+                    <p>Hasil unduhan akan muncul di sini.</p>
                   </div>
                 </div>
               )}
@@ -297,8 +267,7 @@ function Home() {
                     <div className="job-header-left">
                       <span className={`status-pip ${isActive ? 'working' : statusTone}`} />
                       <div>
-                        <h2 className="job-title" data-testid="text-job-title">{job.status === 'completed' ? 'File ditemukan' : job.status === 'blocked' ? manualSafefilekuUrl ? 'Verifikasi manual diperlukan' : 'Tautan diblokir' : job.status === 'failed' ? 'Proses tidak selesai' : job.status === 'cancelled' ? 'Proses dibatalkan' : 'Mengikuti tautan'}</h2>
-                        <p className="job-subtitle" data-testid="text-job-id">Proses · {job.id}</p>
+                        <h2 className="job-title" data-testid="text-job-title">{job.status === 'completed' ? 'File siap disimpan' : job.status === 'blocked' ? manualSafefilekuUrl ? 'Verifikasi diperlukan' : 'Tautan tidak dapat dibuka' : job.status === 'failed' ? 'Unduhan tidak selesai' : job.status === 'cancelled' ? 'Unduhan dibatalkan' : 'Menyiapkan unduhan'}</h2>
                       </div>
                     </div>
                     <span className={`status-badge ${statusTone}`} data-testid="status-download-job">
@@ -308,81 +277,61 @@ function Home() {
                     </span>
                   </div>
                   <div className="job-content">
-                    <p className="job-message" data-testid="text-job-message">{job.message}</p>
-                    {job.error && (
-                      <div className="error-callout" role="alert" data-testid="alert-job-error"><CircleAlert size={15} />{job.error}</div>
-                    )}
-                    <div className="steps-label">
-                      <span>Langkah yang sudah dilakukan</span>
-                      <span className="step-count" data-testid="text-step-count">{job.steps.length} langkah</span>
-                    </div>
-                    {job.steps.length > 0 ? (
-                      <div className="timeline" data-testid="list-download-steps">
-                        {job.steps.map((step, index) => (
-                          <div className="timeline-row" key={step.id} data-testid={`row-download-step-${step.id}`}>
-                            <div className="timeline-rail">
-                              <span className="timeline-node">{stepIcon(step.kind)}</span>
-                              {index !== job.steps.length - 1 && <span className="timeline-line" />}
-                            </div>
-                            <div className="timeline-copy">
-                              <p className="timeline-message" data-testid={`text-step-message-${step.id}`}>{step.message}</p>
-                              {step.url && <span className="timeline-url" title={step.url} data-testid={`text-step-url-${step.id}`}>{step.url}</span>}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="empty-state" data-testid="state-no-steps">
-                        <div className="empty-copy"><strong>Menunggu langkah pertama</strong><p>Server belum melaporkan pengalihan atau jeda.</p></div>
-                      </div>
-                    )}
-                    {isTerminal && (
-                      <div className="job-actions" data-testid="group-job-actions">
-                        {job.status === 'completed' ? (
-                          <>
-                            <div className="file-summary" data-testid="summary-downloaded-file">
-                              <div className="file-icon"><File size={17} /></div>
-                              <div>
-                                <div className="file-name" title={job.fileName || 'File unduhan'} data-testid="text-file-name">{job.fileName || 'File unduhan'}</div>
-                                <div className="file-size" data-testid="text-file-size">{formatSize(job.fileSize)}</div>
-                              </div>
-                            </div>
-                            <button className="download-button" type="button" data-testid="button-save-file" onClick={() => void saveFile()} disabled={fileQuery.isFetching}>
-                              {fileQuery.isFetching ? <LoaderCircle size={13} className="spin-icon" /> : <ArrowDownToLine size={13} />}
-                              {fileQuery.isFetching ? 'Menyiapkan file' : 'Simpan file'}
-                            </button>
-                          </>
-                        ) : (
-                          <div className="empty-copy terminal-guidance" data-testid="text-terminal-guidance">
-                            <strong>{job.status === 'blocked' ? manualSafefilekuUrl ? 'Selesaikan di Safefileku' : 'Tujuan ini tidak didukung' : job.status === 'cancelled' ? 'Proses ini telah dihentikan' : 'File tidak berhasil dikirim'}</strong>
-                            <p>{manualSafefilekuUrl ? 'Buka halaman Safefileku dan selesaikan verifikasi di browser Anda. Unduhan berlangsung langsung di sana; job server ini tidak dilanjutkan.' : job.status === 'blocked' ? 'Server berhenti di tujuan yang tidak dapat diikuti dengan aman.' : job.status === 'cancelled' ? 'Kirim tautan lagi untuk memulai proses baru.' : 'Periksa langkah di atas untuk mengetahui titik proses terhenti.'}</p>
-                            {manualSafefilekuUrl && (
-                              <a
-                                className="download-button manual-open-link"
-                                data-testid="button-manual-safefileku"
-                                href={manualSafefilekuUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                              >
-                                Buka Safefileku manual <ExternalLink size={13} />
-                              </a>
-                            )}
-                          </div>
-                        )}
-                        {isActive && (
-                          <button className="cancel-button" type="button" data-testid="button-cancel-download" onClick={cancelActiveJob} disabled={cancelDownload.isPending}>
-                            {cancelDownload.isPending ? 'Menghentikan…' : 'Batalkan proses'}
-                          </button>
-                        )}
-                      </div>
-                    )}
-                    {job.status === 'completed' && downloadError && <p className="download-error" role="alert" data-testid="text-download-error">{downloadError}</p>}
                     {isActive && (
-                      <div className="job-actions">
-                        <span className="field-help" data-testid="text-polling-note"><Clock3 size={13} /> Progres diperiksa otomatis setiap beberapa detik.</span>
+                      <div className="loading-state" role="status" data-testid="state-download-loading">
+                        <span className="loading-indicator" aria-hidden="true"><LoaderCircle className="spin-icon" size={20} /></span>
+                        <div className="loading-copy">
+                          <strong>Memproses tautan</strong>
+                          <p>Mohon tunggu sebentar, file sedang disiapkan.</p>
+                        </div>
                         <button className="cancel-button" type="button" data-testid="button-cancel-download" onClick={cancelActiveJob} disabled={cancelDownload.isPending}>
-                          {cancelDownload.isPending ? 'Menghentikan…' : 'Batalkan proses'}
+                          {cancelDownload.isPending ? 'Menghentikan…' : 'Batalkan'}
                         </button>
+                      </div>
+                    )}
+                    {job.status === 'completed' && (
+                      <>
+                        <div className="terminal-result success-result" data-testid="summary-downloaded-file">
+                          <div className="result-icon"><File size={17} /></div>
+                          <div className="result-copy">
+                            <strong>File siap disimpan</strong>
+                            <span className="file-name" title={job.fileName || 'File unduhan'} data-testid="text-file-name">{job.fileName || 'File unduhan'}</span>
+                            <span className="file-size" data-testid="text-file-size">{formatSize(job.fileSize)}</span>
+                          </div>
+                          <Check className="result-check" size={18} aria-hidden="true" />
+                        </div>
+                        <button className="download-button" type="button" data-testid="button-save-file" onClick={() => void saveFile()} disabled={fileQuery.isFetching}>
+                          {fileQuery.isFetching ? <LoaderCircle size={14} className="spin-icon" /> : <ArrowDownToLine size={14} />}
+                          {fileQuery.isFetching ? 'Menyiapkan file' : 'Simpan file'}
+                        </button>
+                        {downloadError && <p className="download-error" role="alert" data-testid="text-download-error">{downloadError}</p>}
+                      </>
+                    )}
+                    {manualSafefilekuUrl && (
+                      <div className="terminal-result manual-result" data-testid="text-terminal-guidance">
+                        <div className="result-icon"><ShieldCheck size={17} /></div>
+                        <div className="result-copy">
+                          <strong>Verifikasi di Safefileku</strong>
+                          <span>Safefileku meminta verifikasi manusia. Selesaikan di situs tersebut untuk mengunduh file.</span>
+                        </div>
+                        <a
+                          className="download-button manual-open-link"
+                          data-testid="button-manual-safefileku"
+                          href={manualSafefilekuUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          Buka <ExternalLink size={13} />
+                        </a>
+                      </div>
+                    )}
+                    {job.status !== 'completed' && !manualSafefilekuUrl && !isActive && (
+                      <div className="terminal-result error-result" data-testid="text-terminal-guidance">
+                        <div className="result-icon"><CircleAlert size={17} /></div>
+                        <div className="result-copy">
+                          <strong>{job.status === 'blocked' ? 'Tujuan tidak dapat dibuka dengan aman' : job.status === 'cancelled' ? 'Proses dibatalkan' : 'Unduhan tidak selesai'}</strong>
+                          <span>{job.error || (job.status === 'cancelled' ? 'Anda dapat memulai proses baru kapan saja.' : 'Silakan periksa tautan dan coba lagi.')}</span>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -391,24 +340,6 @@ function Home() {
             </section>
           </div>
 
-          <aside className="panel info-panel" data-testid="panel-how-it-works">
-            <div className="panel-kicker">Tanpa perlu menerka-nerka</div>
-            <h2 className="info-heading">Lihat prosesnya, bukan hanya hasilnya.</h2>
-            <div className="info-list">
-              <div className="info-item" data-testid="info-step-open">
-                <span className="info-icon"><ExternalLink size={14} /></span>
-                <div><strong>Pengalihan terlihat jelas</strong><p>Lihat setiap halaman yang didukung dan dibuka server.</p></div>
-              </div>
-              <div className="info-item" data-testid="info-step-wait">
-                <span className="info-icon"><Clock3 size={14} /></span>
-                <div><strong>Jeda yang dijelaskan</strong><p>Beberapa tautan perlu waktu. Anda tetap mendapat kabar.</p></div>
-              </div>
-              <div className="info-item" data-testid="info-step-outcome">
-                <span className="info-icon"><ShieldCheck size={14} /></span>
-                <div><strong>Alasan berhenti dijelaskan</strong><p>Jika tujuan diblokir atau gagal, Anda akan tahu di mana proses berakhir.</p></div>
-              </div>
-            </div>
-          </aside>
         </section>
       </main>
 
