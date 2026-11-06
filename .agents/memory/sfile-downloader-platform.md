@@ -21,8 +21,8 @@ Keep interface copy brief and neutral; avoid promotional or exaggerated wording 
 
 **How to apply:** Prefer a short page title, one direct input label, a simple action label, and concise result text.
 
-Use the user's latest Malz Bypass URL reference: a rounded black card, monochrome palette, clean sans-serif type, pale primary button, result card, and compact feature chips.
+Keep the original ZeroAds Downloader name while using the latest reference's rounded black card, monochrome palette, clean sans-serif type, pale primary button, result card, and compact feature chips.
 
-**Why:** The user replaced the earlier red ZeroAds reference with a black-and-white screenshot and asked to remove the cancel button.
+**Why:** The user clarified that the new screenshot should guide the appearance, not replace the existing product name.
 
-**How to apply:** Keep the feature chips visible during processing, show one spinner and an elapsed-seconds timer in the primary button, hide cancellation controls, and present only real file or validated Safefileku URL results.
+**How to apply:** Preserve the ZeroAds Downloader name in the page, browser metadata, and footer. Keep the feature chips visible during processing, show one spinner and an elapsed-seconds timer in the primary button, hide cancellation controls, and present only real file or validated Safefileku URL results.

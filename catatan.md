@@ -1,4 +1,4 @@
-# Catatan Proyek — Malz Bypass URL
+# Catatan Proyek — ZeroAds Downloader
 
 ## Ringkasan
 
