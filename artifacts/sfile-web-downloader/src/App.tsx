@@ -215,7 +215,7 @@ function Home() {
                     urlInputRef.current?.focus();
                   }}
                 >
-                  <X size={16} aria-hidden="true" />
+                  <X size={14} strokeWidth={2.25} aria-hidden="true" />
                 </button>
               )}
             </div>
