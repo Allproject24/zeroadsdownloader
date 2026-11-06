@@ -21,8 +21,8 @@ Keep interface copy brief and neutral; avoid promotional or exaggerated wording 
 
 **How to apply:** Prefer a short page title, one direct input label, a simple action label, and concise result text.
 
-Use the user's chosen ZeroAds Downloader reference: centered content without an outer card frame, red download mark, uppercase descriptor, link field, red action button, compact feature chips, and a near-black garnet background.
+Use the user's latest Malz Bypass URL reference: a rounded black card, monochrome palette, clean sans-serif type, pale primary button, result card, and compact feature chips.
 
-**Why:** The user explicitly asked the app to match the supplied ZeroAds Downloader design.
+**Why:** The user replaced the earlier red ZeroAds reference with a black-and-white screenshot and asked to remove the cancel button.
 
-**How to apply:** Keep the reference wording and feature chips visible during processing, avoid an outer card frame, keep the mobile layout compact with restrained red glow, prevent square input focus/autofill backgrounds, and show one spinner plus an elapsed-seconds timer in the download button.
+**How to apply:** Keep the feature chips visible during processing, show one spinner and an elapsed-seconds timer in the primary button, hide cancellation controls, and present only real file or validated Safefileku URL results.

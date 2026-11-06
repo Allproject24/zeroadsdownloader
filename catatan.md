@@ -1,13 +1,13 @@
-# Catatan Proyek — ZeroAds Downloader
+# Catatan Proyek — Malz Bypass URL
 
 ## Ringkasan
 
-Aplikasi web untuk memproses tautan pendek yang didukung dan mengunduh file langsung dari situs. Pengguna tidak perlu memakai aplikasi pengelola unduhan terpisah.
+Aplikasi web untuk memproses tautan pendek yang didukung dan mengunduh file hasilnya. Alur tautan dan pengiriman file berjalan melalui situs ini.
 
 ## Struktur proyek
 
 - `artifacts/sfile-web-downloader/` — antarmuka React + Vite, form tautan, status proses, dan penyimpanan file ke perangkat pengguna.
-- `artifacts/api-server/` — API Express untuk membuat, memantau, membatalkan pekerjaan, serta mengirim file hasil unduhan.
+- `artifacts/api-server/` — API Express untuk membuat dan memantau pekerjaan serta mengirim file hasil unduhan. API masih memiliki endpoint pembatalan, tetapi tombol batal tidak ditampilkan di antarmuka.
 - `lib/api-spec/openapi.yaml` — kontrak API sumber utama.
 - `lib/api-client-react/` dan `lib/api-zod/` — klien React dan skema validasi yang dihasilkan dari kontrak API.
 
@@ -17,7 +17,7 @@ Aplikasi web untuk memproses tautan pendek yang didukung dan mengunduh file lang
 2. Halaman mengirim URL ke `POST /api/downloads`.
 3. Server memeriksa domain yang didukung dan memproses alur tautan di browser.
 4. Halaman mengambil status pekerjaan secara berkala tanpa cache.
-5. Jika selesai, pengguna dapat menyimpan file melalui tombol **Simpan**. Jika Safefileku meminta verifikasi manusia, aplikasi menampilkan tautan untuk melanjutkan di situs tersebut.
+5. Jika selesai, pengguna dapat menyimpan file melalui tombol **Simpan**. Jika Safefileku meminta verifikasi manusia, aplikasi menampilkan URL yang dapat disalin atau dibuka untuk melanjutkan di situs tersebut.
 
 Status pekerjaan: `queued`, `running`, `completed`, `failed`, `blocked`, dan `cancelled`.
 
@@ -46,10 +46,11 @@ pnpm --filter @workspace/api-spec run codegen
 
 ## Catatan pemeliharaan
 
-- Jaga antarmuka tetap sederhana dan ringkas: konten terpusat tanpa bingkai luar, ukuran nyaman di ponsel, serta aksen merah tanpa glow berlebihan.
+- Ikuti tampilan terbaru: kartu hitam dengan garis tipis, palet hitam-putih/abu-abu, dan font sans-serif yang rapi.
 - Kolom URL harus tetap gelap saat fokus/autofill dan hanya memakai indikator fokus membulat; jangan tampilkan outline persegi pada input.
-- Pertahankan redaksi referensi: “Unduh dari SFL.GL · SFILE.CO · SAFELINKU · dan lain-lain”.
-- Empat label fitur tetap terlihat selama unduhan berjalan; tampilkan satu spinner saja di tombol proses dengan timer mulai dari `1s`.
+- Tampilkan domain yang benar-benar didukung API; jangan mencantumkan layanan lain yang belum diproses.
+- Empat label fitur tetap terlihat selama unduhan berjalan; tampilkan satu spinner dan timer mulai dari `1s` di tombol **Bypass**.
+- Jangan tampilkan tombol **Batalkan** pada antarmuka.
 - Jangan tampilkan urutan klik dan waktu tunggu internal selama unduhan berlangsung.
 - Pertahankan pengambilan status dengan `cache: no-store` agar tampilan tidak memakai status lama.
 - Perubahan alur download harus tetap memvalidasi domain dan menjaga pembatalan, status gagal, serta panduan verifikasi manual.

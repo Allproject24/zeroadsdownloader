@@ -5,6 +5,7 @@ import {
   Check,
   CircleAlert,
   CloudDownload,
+  Copy,
   ExternalLink,
   Link2,
   LoaderCircle,
@@ -12,7 +13,6 @@ import {
 import {
   getGetDownloadQueryKey,
   getGetDownloadedFileQueryKey,
-  useCancelDownload,
   useGetDownload,
   useGetDownloadedFile,
   useStartDownload,
@@ -58,11 +58,11 @@ function Home() {
   const [inputError, setInputError] = useState('');
   const [startError, setStartError] = useState('');
   const [downloadError, setDownloadError] = useState('');
+  const [copyFeedback, setCopyFeedback] = useState('');
   const [startedAt, setStartedAt] = useState<number | null>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(1);
   const queryClientInstance = useQueryClient();
   const startDownload = useStartDownload();
-  const cancelDownload = useCancelDownload();
 
   const jobQuery = useGetDownload(activeJobId, {
     query: {
@@ -111,21 +111,13 @@ function Home() {
       onSuccess: (createdJob) => {
         setActiveJobId(createdJob.id);
         setDownloadError('');
+        setCopyFeedback('');
         queryClientInstance.setQueryData(getGetDownloadQueryKey(createdJob.id), createdJob);
       },
       onError: (error) => {
         setStartedAt(null);
         setElapsedSeconds(1);
         setStartError(error instanceof Error ? error.message : 'Permintaan tidak dapat dimulai. Silakan coba lagi.');
-      },
-    });
-  };
-
-  const cancelActiveJob = () => {
-    if (!activeJobId) return;
-    cancelDownload.mutate({ jobId: activeJobId }, {
-      onSuccess: (cancelledJob) => {
-        queryClientInstance.setQueryData(getGetDownloadQueryKey(activeJobId), cancelledJob);
       },
     });
   };
@@ -146,6 +138,27 @@ function Home() {
     anchor.click();
     anchor.remove();
     window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+  };
+
+  const copyManualUrl = async () => {
+    if (!manualSafefilekuUrl) return;
+    try {
+      await navigator.clipboard.writeText(manualSafefilekuUrl);
+      setCopyFeedback('URL disalin');
+    } catch {
+      setCopyFeedback('URL tidak dapat disalin.');
+    }
+  };
+
+  const returnToHome = () => {
+    setActiveJobId('');
+    setUrl('');
+    setInputError('');
+    setStartError('');
+    setDownloadError('');
+    setCopyFeedback('');
+    setStartedAt(null);
+    setElapsedSeconds(1);
   };
 
   const isActive = job?.status === 'queued' || job?.status === 'running';
@@ -170,10 +183,10 @@ function Home() {
         <section className="downloader-card" aria-labelledby="page-title">
           <div className="card-brand" data-testid="header-brand">
             <div className="brand-mark" aria-hidden="true"><CloudDownload size={21} strokeWidth={2} /></div>
-            <h1 id="page-title" className="card-title" data-testid="text-page-title">ZeroAds Downloader</h1>
-            <p className="card-subtitle">UNDUH SEMUA SHORT LINK</p>
+            <h1 id="page-title" className="card-title" data-testid="text-page-title">Malz Bypass URL</h1>
+            <p className="card-subtitle">BYPASS SEMUA SHORT LINK</p>
             <p className="card-description">
-              Unduh dari <strong>SFL.GL</strong> · <strong>SFILE.CO</strong> · <strong>SAFELINKU</strong> · dan lain-lain
+              Bypass <strong>SFL.GL</strong> · <strong>SFILE.CO</strong> · <strong>SFILE.MOBI</strong> · <strong>SAFELINKU</strong> · <strong>SAFILEKU</strong>
             </p>
           </div>
 
@@ -211,20 +224,13 @@ function Home() {
                     <span>Memproses</span>
                     <span className="button-timer" data-testid="text-elapsed-time" aria-live="off">{elapsedSeconds}s</span>
                   </>
-                : <><ArrowDownToLine size={18} aria-hidden="true" /> Unduh</>}
+                : <span>Bypass</span>}
             </button>
             {inputError && <p className="input-error" id="url-error" data-testid="text-url-error">{inputError}</p>}
             {startError && <div className="error-callout" role="alert" data-testid="alert-start-error"><CircleAlert size={15} />{startError}</div>}
           </form>
 
-          <div className="service-tags" aria-label="Keunggulan layanan">
-            <span>Bebas Iklan</span>
-            <span>Bebas Shortlink</span>
-            <span>Cepat &amp; Mudah</span>
-            <span>Support All Device</span>
-          </div>
-
-          {activeJobId && (
+          {activeJobId && !isProcessing && (
             <section className="job-panel" aria-live="polite" data-testid="panel-job-status">
               {jobQuery.isError && (
                 <div className="result-error" data-testid="state-job-error">
@@ -232,16 +238,9 @@ function Home() {
                   <button className="retry-button" type="button" data-testid="button-retry-status" onClick={() => void jobQuery.refetch()}>Coba lagi</button>
                 </div>
               )}
-              {isProcessing && (
-                <div className="loading-state" data-testid="state-download-loading">
-                  <button className="cancel-button" type="button" data-testid="button-cancel-download" onClick={cancelActiveJob} disabled={cancelDownload.isPending}>
-                    {cancelDownload.isPending ? 'Menghentikan' : 'Batalkan'}
-                  </button>
-                </div>
-              )}
               {job?.status === 'completed' && (
                 <div className="result-card success-result" data-testid="summary-downloaded-file">
-                  <Check size={17} aria-hidden="true" />
+                  <div className="result-eyebrow">FILE HASIL</div>
                   <div className="result-copy">
                     <strong data-testid="text-file-name">{job.fileName || 'File siap'}</strong>
                     <span data-testid="text-file-size">{formatSize(job.fileSize)}</span>
@@ -255,16 +254,25 @@ function Home() {
               )}
               {manualSafefilekuUrl && (
                 <div className="result-card manual-result" data-testid="text-terminal-guidance">
-                  <span>Safefileku meminta verifikasi.</span>
-                  <a
-                    className="download-button manual-open-link"
-                    data-testid="button-manual-safefileku"
-                    href={manualSafefilekuUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    Buka <ExternalLink size={13} />
-                  </a>
+                  <div className="result-eyebrow">LINK ASLI</div>
+                  <code className="manual-url">{manualSafefilekuUrl}</code>
+                  <p className="result-note">Safefileku meminta verifikasi lanjutan.</p>
+                  <div className="result-actions">
+                    <button className="result-action" type="button" onClick={() => void copyManualUrl()}>
+                      {copyFeedback === 'URL disalin' ? <Check size={15} /> : <Copy size={15} />}
+                      {copyFeedback === 'URL disalin' ? 'Tersalin' : 'Salin URL'}
+                    </button>
+                    <a
+                      className="result-action"
+                      data-testid="button-manual-safefileku"
+                      href={manualSafefilekuUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Buka Link <ExternalLink size={14} />
+                    </a>
+                  </div>
+                  {copyFeedback && copyFeedback !== 'URL disalin' && <p className="copy-feedback" role="alert">{copyFeedback}</p>}
                 </div>
               )}
               {job && !isActive && job.status !== 'completed' && !manualSafefilekuUrl && (
@@ -276,8 +284,21 @@ function Home() {
             </section>
           )}
 
-          <div className="card-divider" aria-hidden="true" />
-          <div className="card-footer">© 2026 ZeroAds Downloader</div>
+          <div className="service-tags" aria-label="Keunggulan layanan">
+            <span>Bypass Iklan</span>
+            <span>Bebas Shortlink</span>
+            <span>Cepat &amp; Mudah</span>
+            <span>Support All Device</span>
+          </div>
+
+          {activeJobId && !isProcessing ? (
+            <button className="home-link" type="button" onClick={returnToHome}>Kembali ke Beranda</button>
+          ) : (
+            <>
+              <div className="card-divider" aria-hidden="true" />
+              <div className="card-footer">© 2026 Malz Bypass URL</div>
+            </>
+          )}
         </section>
       </main>
     </div>
