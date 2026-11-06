@@ -139,7 +139,7 @@ button:disabled {
 
 .card-description strong {
   color: #b9b9b9;
-  font-size: .9em;
+  font-size: 1em;
   font-weight: 500;
 }
 
@@ -179,13 +179,14 @@ button:disabled {
   color: #f1f1f1;
   background: transparent !important;
   background-color: transparent !important;
-  font: 400 15px var(--app-font-sans);
+  font: 400 12px var(--app-font-sans);
   appearance: none;
   -webkit-appearance: none;
 }
 
 .url-input::placeholder {
   color: #777;
+  font-size: 10px;
 }
 
 .clear-url-button {

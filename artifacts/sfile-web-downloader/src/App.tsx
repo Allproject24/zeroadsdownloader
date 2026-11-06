@@ -194,7 +194,7 @@ function Home() {
                 inputMode="url"
                 autoComplete="url"
                 maxLength={2048}
-                placeholder="https://sfl.gl/xxxxx"
+                placeholder="Tempel link shortlink di sini"
                 value={url}
                 onChange={(event) => {
                   setUrl(event.target.value);
