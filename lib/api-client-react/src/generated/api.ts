@@ -169,9 +169,9 @@ export const getStartDownloadUrl = () => {
 }
 
 /**
- * @summary Start a download from a supported short link
+ * @summary Process a supported short link and return its file
  */
-export const startDownload = async (downloadRequest: DownloadRequest, options?: Parameters<typeof customFetch>[1]): Promise<DownloadJob> => {
+export const startDownload = async (downloadRequest: DownloadRequest, options?: Parameters<typeof customFetch>[1]): Promise<DownloadJob | Blob> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
     if (!h) return {};
@@ -187,7 +187,7 @@ export const startDownload = async (downloadRequest: DownloadRequest, options?: 
     }
     return headers;
   };
-return customFetch<DownloadJob>(getStartDownloadUrl(),
+return customFetch<DownloadJob | Blob>(getStartDownloadUrl(),
   {
     ...options,
     method: 'POST',
@@ -235,7 +235,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type StartDownloadMutationVariables = {data: BodyType<DownloadRequest>}
 
     /**
- * @summary Start a download from a supported short link
+ * @summary Process a supported short link and return its file
  */
 export const useStartDownload = <TError = ErrorType<void | StartDownload429>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startDownload>>, TError,StartDownloadMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}

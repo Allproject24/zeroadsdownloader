@@ -1,0 +1,12 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "installCommand": "pnpm install --frozen-lockfile --include-workspace-root --filter @workspace/sfile-web-downloader... --filter @workspace/api-server...",
+  "buildCommand": "pnpm --filter @workspace/sfile-web-downloader run build:vercel",
+  "outputDirectory": "public",
+  "functions": {
+    "src/index.ts": {
+      "maxDuration": 300,
+      "includeFiles": "node_modules/.pnpm/@sparticuz+chromium@*/node_modules/@sparticuz/chromium/bin/**"
+    }
+  }
+}

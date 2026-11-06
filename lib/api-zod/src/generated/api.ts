@@ -18,7 +18,7 @@ export const HealthCheckResponse = zod.object({
 
 
 /**
- * @summary Start a download from a supported short link
+ * @summary Process a supported short link and return its file
  */
 export const startDownloadBodyUrlMax = 2048;
 

@@ -5,21 +5,21 @@ import {
   GetDownloadResponse,
   GetDownloadedFileParams,
   StartDownloadBody,
-  StartDownloadResponse,
 } from "@workspace/api-zod";
 import { Router, type IRouter } from "express";
 import {
+  canStartSynchronousDownload,
   canAcceptDownloadJob,
   cancelDownloadJob,
   getDownloadFile,
   getDownloadJob,
   isSupportedStartUrl,
-  startDownloadJob,
+  processDownloadSynchronously,
 } from "../lib/download-manager";
 
 const router: IRouter = Router();
 
-router.post("/downloads", (req, res): void => {
+router.post("/downloads", async (req, res): Promise<void> => {
   const parsed = StartDownloadBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -36,9 +36,34 @@ router.post("/downloads", (req, res): void => {
     res.status(429).json({ error: "Antrean unduhan penuh. Coba lagi beberapa menit lagi." });
     return;
   }
+  if (!canStartSynchronousDownload()) {
+    res.status(429).json({ error: "Unduhan lain sedang diproses. Coba lagi sebentar." });
+    return;
+  }
 
-  const job = startDownloadJob(parsed.data.url);
-  res.status(202).json(StartDownloadResponse.parse(job));
+  try {
+    const { job, file } = await processDownloadSynchronously(parsed.data.url);
+    if (file) {
+      res.setHeader("Cache-Control", "no-store");
+      res.setHeader("X-Download-Result", "file");
+      res.setHeader("X-Download-Id", job.id);
+      res.setHeader("X-Download-File-Name", encodeURIComponent(file.fileName));
+      res.setHeader("X-Download-File-Size", String(file.fileSize));
+      res.download(file.path, file.fileName, (error) => {
+        if (error) {
+          req.log.error({ err: error, jobId: job.id }, "Download response failed");
+        }
+      });
+      return;
+    }
+    res.setHeader("Cache-Control", "no-store");
+    res.json(job);
+  } catch (error) {
+    req.log.error({ err: error }, "Synchronous download failed");
+    res.status(500).json({
+      error: error instanceof Error ? error.message : "Unduhan tidak dapat diproses.",
+    });
+  }
 });
 
 router.get("/downloads/:jobId", (req, res): void => {

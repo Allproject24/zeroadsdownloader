@@ -2,6 +2,7 @@
 
 # compiled output
 dist
+/public/
 tmp
 out-tsc
 *.tsbuildinfo
@@ -34,6 +35,9 @@ node_modules
 !.vscode/extensions.json
 
 # misc
+/.env
+/.env.*
+!/.env.example
 /.sass-cache
 /connect.lock
 /coverage

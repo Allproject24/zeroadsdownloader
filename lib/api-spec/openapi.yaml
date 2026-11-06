@@ -30,7 +30,7 @@ paths:
     post:
       operationId: startDownload
       tags: [downloads]
-      summary: Start a download from a supported short link
+      summary: Process a supported short link and return its file
       requestBody:
         required: true
         content:
@@ -38,12 +38,16 @@ paths:
             schema:
               $ref: "#/components/schemas/DownloadRequest"
       responses:
-        "202":
-          description: Download job accepted
+        "200":
+          description: Download result
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/DownloadJob"
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
         "400":
           description: Invalid or unsupported URL
         "429":
@@ -56,6 +60,8 @@ paths:
                   error:
                     type: string
                 required: [error]
+        "500":
+          description: Download could not be processed
   /downloads/{jobId}:
     get:
       operationId: getDownload

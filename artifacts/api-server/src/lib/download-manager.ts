@@ -5,6 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import { randomUUID } from "node:crypto";
+import chromium from "@sparticuz/chromium";
 import puppeteer, {
   type Browser,
   type Page,
@@ -47,6 +48,11 @@ export interface DownloadJobView {
   manualUrl: string | null;
 }
 
+export interface ProcessedDownload {
+  job: DownloadJobView;
+  file?: { path: string; fileName: string; fileSize: number };
+}
+
 interface DownloadJob extends DownloadJobView {
   sourceUrl: string;
   tempDir: string | null;
@@ -73,7 +79,8 @@ const MAX_QUEUED_JOBS = 4;
 const MAX_BROWSER_TABS = 12;
 const MAX_OPEN_CLICKS_PER_TAB = 8;
 const MAX_FLOW_TIME_MS = 2 * 60 * 1000;
-const MAX_FILE_BYTES = 500 * 1024 * 1024;
+const MAX_FILE_BYTES =
+  (process.env.VERCEL === "1" ? 250 : 500) * 1024 * 1024;
 const JOB_TTL_MS = 20 * 60 * 1000;
 const BROWSER_PROTOCOL_TIMEOUT_MS = 15_000;
 const OPEN_ACTION_WAIT_MS = 10_000;
@@ -114,6 +121,10 @@ export function canAcceptDownloadJob(): boolean {
   return pending < MAX_ACTIVE_JOBS + MAX_QUEUED_JOBS;
 }
 
+export function canStartSynchronousDownload(): boolean {
+  return activeWorkers === 0 && queuedWorkers.length === 0;
+}
+
 export function getDownloadFile(
   id: string,
 ): { path: string; fileName: string; fileSize: number } | undefined {
@@ -125,7 +136,25 @@ export function getDownloadFile(
 }
 
 export function startDownloadJob(sourceUrl: string): DownloadJobView {
-  const job: DownloadJob = {
+  const job = createJob(sourceUrl);
+  jobs.set(job.id, job);
+  addStep(job, "open", "Tautan diterima; menunggu browser.", sourceUrl);
+  void runJob(job);
+  return toView(job);
+}
+
+export async function processDownloadSynchronously(
+  sourceUrl: string,
+): Promise<ProcessedDownload> {
+  const job = createJob(sourceUrl);
+  jobs.set(job.id, job);
+  addStep(job, "open", "Tautan diterima; menunggu browser.", sourceUrl);
+  await runJob(job);
+  return { job: toView(job), file: getDownloadFile(job.id) };
+}
+
+function createJob(sourceUrl: string): DownloadJob {
+  return {
     id: randomUUID(),
     sourceUrl,
     status: "queued",
@@ -143,10 +172,6 @@ export function startDownloadJob(sourceUrl: string): DownloadJobView {
     suggestedFilename: null,
     attachmentUrls: new Set(),
   };
-  jobs.set(job.id, job);
-  addStep(job, "open", "Tautan diterima; menunggu browser.", sourceUrl);
-  void runJob(job);
-  return toView(job);
 }
 
 export async function cancelDownloadJob(id: string): Promise<DownloadJobView | undefined> {
@@ -366,20 +391,26 @@ async function runJob(job: DownloadJob): Promise<void> {
   job.message = "Membuka halaman perantara di browser.";
 
   try {
-    const executablePath =
-      process.env.CHROMIUM_PATH || "/repl/tools/bin/chromium";
+    const configuredChromiumPath = process.env.CHROMIUM_PATH;
+    const usePackagedChromium = !configuredChromiumPath && process.env.VERCEL === "1";
+    const executablePath = configuredChromiumPath
+      || (usePackagedChromium
+        ? await chromium.executablePath()
+        : "/repl/tools/bin/chromium");
     await fs.access(executablePath, fsConstants.X_OK);
     job.tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "sfile-download-"));
     job.browser = await puppeteer.launch({
       executablePath,
       headless: true,
       protocolTimeout: BROWSER_PROTOCOL_TIMEOUT_MS,
-      args: [
-        "--no-sandbox",
-        "--disable-setuid-sandbox",
-        "--disable-dev-shm-usage",
-        "--disable-background-networking",
-      ],
+      args: !usePackagedChromium
+        ? [
+            "--no-sandbox",
+            "--disable-setuid-sandbox",
+            "--disable-dev-shm-usage",
+            "--disable-background-networking",
+          ]
+        : chromium.args,
     });
     await runBrowserFlow(job);
   } catch (error) {
@@ -1070,7 +1101,7 @@ async function finishDownloadedFile(job: DownloadJob, browserPath?: string): Pro
         if (stat.size > MAX_FILE_BYTES) {
           await fs.rm(candidate, { force: true });
           job.status = "failed";
-          job.error = "File melebihi batas ukuran 500 MB.";
+          job.error = `File melebihi batas ukuran ${process.env.VERCEL === "1" ? 250 : 500} MB.`;
           job.message = job.error;
           addStep(job, "notice", job.error, null);
           return;
