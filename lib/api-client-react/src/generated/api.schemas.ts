@@ -58,6 +58,8 @@ export interface DownloadJob {
   fileSize: number | null;
   /** @nullable */
   error: string | null;
+  /** @nullable */
+  manualUrl: string | null;
 }
 
 export type StartDownload429 = {

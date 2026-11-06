@@ -170,5 +170,7 @@ components:
           type: ["integer", "null"]
         error:
           type: ["string", "null"]
-      required: [id, status, message, steps, fileName, fileSize, error]
+        manualUrl:
+          type: ["string", "null"]
+      required: [id, status, message, steps, fileName, fileSize, error, manualUrl]
 

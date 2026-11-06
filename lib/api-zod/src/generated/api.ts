@@ -40,7 +40,8 @@ export const StartDownloadResponse = zod.object({
 })),
   "fileName": zod.string().nullable(),
   "fileSize": zod.number().int().nullable(),
-  "error": zod.string().nullable()
+  "error": zod.string().nullable(),
+  "manualUrl": zod.string().nullable()
 })
 
 
@@ -63,7 +64,8 @@ export const GetDownloadResponse = zod.object({
 })),
   "fileName": zod.string().nullable(),
   "fileSize": zod.number().int().nullable(),
-  "error": zod.string().nullable()
+  "error": zod.string().nullable(),
+  "manualUrl": zod.string().nullable()
 })
 
 
@@ -86,7 +88,8 @@ export const CancelDownloadResponse = zod.object({
 })),
   "fileName": zod.string().nullable(),
   "fileSize": zod.number().int().nullable(),
-  "error": zod.string().nullable()
+  "error": zod.string().nullable(),
+  "manualUrl": zod.string().nullable()
 })
 
 

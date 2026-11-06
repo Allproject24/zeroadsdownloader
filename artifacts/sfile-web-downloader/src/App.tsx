@@ -57,6 +57,23 @@ function formatStatus(status: DownloadJob['status']) {
   return labels[status];
 }
 
+function getManualSafefilekuUrl(job: DownloadJob | undefined): string | null {
+  if (job?.status !== 'blocked' || !job.manualUrl) return null;
+  try {
+    const url = new URL(job.manualUrl);
+    if (
+      url.protocol !== 'https:' ||
+      url.origin !== 'https://safefileku.com' ||
+      !/^\/download\/[A-Za-z0-9_-]+\/?$/.test(url.pathname)
+    ) {
+      return null;
+    }
+    return url.href;
+  } catch {
+    return null;
+  }
+}
+
 function stepIcon(kind: DownloadStep['kind']) {
   switch (kind) {
     case 'open': return <ExternalLink size={12} />;
@@ -91,6 +108,7 @@ function Home() {
     request: { cache: 'no-store' },
   });
   const job = jobQuery.data;
+  const manualSafefilekuUrl = getManualSafefilekuUrl(job);
   const fileQuery = useGetDownloadedFile(activeJobId, {
     query: {
       enabled: false,
@@ -279,7 +297,7 @@ function Home() {
                     <div className="job-header-left">
                       <span className={`status-pip ${isActive ? 'working' : statusTone}`} />
                       <div>
-                        <h2 className="job-title" data-testid="text-job-title">{job.status === 'completed' ? 'File ditemukan' : job.status === 'blocked' ? 'Tautan diblokir' : job.status === 'failed' ? 'Proses tidak selesai' : job.status === 'cancelled' ? 'Proses dibatalkan' : 'Mengikuti tautan'}</h2>
+                        <h2 className="job-title" data-testid="text-job-title">{job.status === 'completed' ? 'File ditemukan' : job.status === 'blocked' ? manualSafefilekuUrl ? 'Verifikasi manual diperlukan' : 'Tautan diblokir' : job.status === 'failed' ? 'Proses tidak selesai' : job.status === 'cancelled' ? 'Proses dibatalkan' : 'Mengikuti tautan'}</h2>
                         <p className="job-subtitle" data-testid="text-job-id">Proses · {job.id}</p>
                       </div>
                     </div>
@@ -335,9 +353,20 @@ function Home() {
                             </button>
                           </>
                         ) : (
-                          <div className="empty-copy" data-testid="text-terminal-guidance">
-                            <strong>{job.status === 'blocked' ? 'Tujuan ini tidak didukung' : job.status === 'cancelled' ? 'Proses ini telah dihentikan' : 'File tidak berhasil dikirim'}</strong>
-                            <p>{job.status === 'blocked' ? 'Server berhenti di tujuan yang tidak dapat diikuti dengan aman.' : job.status === 'cancelled' ? 'Kirim tautan lagi untuk memulai proses baru.' : 'Periksa langkah di atas untuk mengetahui titik proses terhenti.'}</p>
+                          <div className="empty-copy terminal-guidance" data-testid="text-terminal-guidance">
+                            <strong>{job.status === 'blocked' ? manualSafefilekuUrl ? 'Selesaikan di Safefileku' : 'Tujuan ini tidak didukung' : job.status === 'cancelled' ? 'Proses ini telah dihentikan' : 'File tidak berhasil dikirim'}</strong>
+                            <p>{manualSafefilekuUrl ? 'Buka halaman Safefileku dan selesaikan verifikasi di browser Anda. Unduhan berlangsung langsung di sana; job server ini tidak dilanjutkan.' : job.status === 'blocked' ? 'Server berhenti di tujuan yang tidak dapat diikuti dengan aman.' : job.status === 'cancelled' ? 'Kirim tautan lagi untuk memulai proses baru.' : 'Periksa langkah di atas untuk mengetahui titik proses terhenti.'}</p>
+                            {manualSafefilekuUrl && (
+                              <a
+                                className="download-button manual-open-link"
+                                data-testid="button-manual-safefileku"
+                                href={manualSafefilekuUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                              >
+                                Buka Safefileku manual <ExternalLink size={13} />
+                              </a>
+                            )}
                           </div>
                         )}
                         {isActive && (

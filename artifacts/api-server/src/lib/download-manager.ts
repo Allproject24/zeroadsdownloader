@@ -44,6 +44,7 @@ export interface DownloadJobView {
   fileName: string | null;
   fileSize: number | null;
   error: string | null;
+  manualUrl: string | null;
 }
 
 interface DownloadJob extends DownloadJobView {
@@ -132,6 +133,7 @@ export function startDownloadJob(sourceUrl: string): DownloadJobView {
     fileName: null,
     fileSize: null,
     error: null,
+    manualUrl: null,
     tempDir: null,
     filePath: null,
     browser: null,
@@ -170,6 +172,7 @@ function toView(job: DownloadJob): DownloadJobView {
     fileName: job.fileName,
     fileSize: job.fileSize,
     error: job.error,
+    manualUrl: job.manualUrl,
   };
 }
 
@@ -198,6 +201,22 @@ function safeDisplayUrl(value: string): string {
     return `${url.origin}${url.pathname}`.slice(0, 300);
   } catch {
     return "";
+  }
+}
+
+function getManualSafefilekuUrl(value: string): string | null {
+  try {
+    const url = new URL(value);
+    if (
+      url.protocol !== "https:" ||
+      url.hostname.toLowerCase() !== "safefileku.com" ||
+      !/^\/download\/[A-Za-z0-9_-]+\/?$/.test(url.pathname)
+    ) {
+      return null;
+    }
+    return `${url.origin}${url.pathname}`.slice(0, 300);
+  } catch {
+    return null;
   }
 }
 
@@ -935,8 +954,10 @@ async function inspectHumanVerification(
 
 function blockDownloadAtHumanVerification(job: DownloadJob, url: string): void {
   job.status = "blocked";
-  job.error =
-    "Cloudflare meminta verifikasi manusia. Proses berhenti di sini dan tidak akan mencentang atau melewati verifikasi.";
+  job.manualUrl = getManualSafefilekuUrl(url);
+  job.error = job.manualUrl
+    ? "Safefileku meminta verifikasi manusia. Job server berhenti di sini; verifikasi dan unduhan dilakukan langsung di Safefileku."
+    : "Cloudflare meminta verifikasi manusia. Proses berhenti di sini dan tidak akan mencentang atau melewati verifikasi.";
   job.message = job.error;
   addStep(job, "notice", job.error, url);
 }

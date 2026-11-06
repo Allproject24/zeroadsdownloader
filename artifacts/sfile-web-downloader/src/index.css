@@ -221,6 +221,8 @@ button:disabled { cursor: not-allowed; }
 .cancel-button, .retry-button { padding: 8px 11px; border: 1px solid hsl(var(--foreground) / .14); border-radius: 7px; background: transparent; color: hsl(var(--foreground)); font-size: 10px; font-weight: 600; }
 .cancel-button:hover, .retry-button:hover { background: hsl(var(--muted)); }
 .download-button { min-height: 38px; padding: 0 13px; font-size: 10px; }
+.manual-open-link { width: fit-content; margin-top: 10px; text-decoration: none; }
+.terminal-guidance { max-width: 620px; }
 .download-error { color: hsl(var(--destructive)); font-size: 10px; }
 .empty-state { min-height: 111px; padding: 25px 22px; display: flex; gap: 14px; align-items: center; }
 .empty-symbol { width: 40px; height: 40px; border: 1px solid hsl(var(--primary) / .16); color: hsl(var(--primary)); border-radius: 12px; display: grid; place-items: center; background: hsl(var(--primary) / .04); }

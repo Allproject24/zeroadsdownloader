@@ -7,4 +7,4 @@ The expected route is `sfl.gl` → `app.khaddavi.net`: click Open and wait 10 se
 
 **Why:** The user provided the actual sequence used in 1DM, including background-tab behavior. Live checks showed the article destination can rotate, “Next” can appear just after the 10-second wait, and Safefileku may present a Cloudflare human-verification checkpoint.
 
-**How to apply:** Use this route and timing when changing Sfile link-following behavior. Poll briefly for delayed controls, inspect newly reached pages for countdowns, and keep Cloudflare human verification as a distinct blocked checkpoint rather than attempting to solve or skip it.
+**How to apply:** Use this route and timing when changing Sfile link-following behavior. Poll briefly for delayed controls, inspect newly reached pages for countdowns, and keep Cloudflare human verification as a distinct blocked checkpoint rather than attempting to solve or skip it. If Safefileku blocks the server session, expose only a validated manual link to its official `/download/<id>` page and state that the user will verify and download there; do not imply the server job can resume.
