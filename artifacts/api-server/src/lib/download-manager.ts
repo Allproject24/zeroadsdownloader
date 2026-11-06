@@ -78,6 +78,8 @@ const BROWSER_PROTOCOL_TIMEOUT_MS = 15_000;
 const OPEN_ACTION_WAIT_MS = 10_000;
 const NEXT_ACTION_WAIT_MS = 1_000;
 const DEFAULT_ACTION_WAIT_MS = 3_000;
+const ACTION_DISCOVERY_GRACE_MS = 3_000;
+const ACTION_DISCOVERY_POLL_MS = 400;
 const jobs = new Map<string, DownloadJob>();
 const queuedWorkers: Array<() => void> = [];
 let activeWorkers = 0;
@@ -617,21 +619,10 @@ async function runBrowserFlow(job: DownloadJob): Promise<void> {
     if (job.status !== "running" || current.isClosed()) break;
 
     const currentUrl = current.url();
-    const text = await current
-      .evaluate(() => `${document.title}\n${document.body?.innerText ?? ""}`)
-      .catch(() => "");
-    const cloudflareFrame = await current
-      .$(
-        'iframe[src*="challenges.cloudflare.com"], iframe[src*="cloudflare"], iframe[title*="challenge"]',
-      )
-      .then(Boolean)
-      .catch(() => false);
-    if (isHumanVerification(text, currentUrl) || cloudflareFrame) {
-      job.status = "blocked";
-      job.error =
-        "Cloudflare meminta verifikasi manusia. Proses berhenti di sini dan tidak akan mencentang atau melewati verifikasi.";
-      job.message = job.error;
-      addStep(job, "notice", job.error, currentUrl);
+    const verification = await inspectHumanVerification(current);
+    const text = verification.text;
+    if (verification.blocked) {
+      blockDownloadAtHumanVerification(job, currentUrl);
       break;
     }
 
@@ -737,14 +728,14 @@ async function runBrowserFlow(job: DownloadJob): Promise<void> {
     }
 
     const afterClickUrl = current.url();
+    let followedFlowRedirect = false;
     if (afterClickUrl !== priorUrl && !current.isClosed()) {
       if (isFlowUrl(afterClickUrl)) {
         addStep(job, "redirect", "Mengikuti halaman tujuan di tab ini.", afterClickUrl);
         actionsByPage.set(current, new Set());
         attemptsByPage.set(current, 0);
-        if (current !== page && isFlowUrl(afterClickUrl, SAFE_POPUP_HOSTS)) {
-          enqueueFlowPage(current, true);
-        }
+        followedFlowRedirect = true;
+        enqueueFlowPage(current, current !== page);
       } else {
         addStep(job, "redirect", "Kembali ke halaman unduhan setelah pengalihan eksternal.", afterClickUrl);
         await current.goBack({ waitUntil: "domcontentloaded", timeout: 12_000 }).catch(() => undefined);
@@ -754,15 +745,26 @@ async function runBrowserFlow(job: DownloadJob): Promise<void> {
 
     const remainingAttempts = attemptsByPage.get(current) ?? attempts + 1;
     if (
+      !followedFlowRedirect &&
       remainingAttempts < MAX_OPEN_CLICKS_PER_TAB &&
-      !current.isClosed() &&
-      (await findAction(
+      !current.isClosed()
+    ) {
+      const nextAction = await waitForActionToAppear(
+        job,
         current,
         actionsByPage.get(current) ?? new Set<string>(),
         preferredActionsByPage.get(current) ?? null,
-      ))
-    ) {
-      enqueueFlowPage(current, current !== page);
+      );
+      if (nextAction) {
+        enqueueFlowPage(current, current !== page);
+      } else if (job.status === "running" && !job.cancelRequested) {
+        addStep(
+          job,
+          "notice",
+          "Tombol lanjutan yang didukung tidak muncul setelah jeda halaman.",
+          current.url(),
+        );
+      }
     }
   }
 
@@ -876,6 +878,67 @@ async function findAction(
         needsScroll: top.needsScroll,
       }
     : null;
+}
+
+async function waitForActionToAppear(
+  job: DownloadJob,
+  page: Page,
+  attemptedActions: Set<string>,
+  preferredLabel: string | null,
+): Promise<Awaited<ReturnType<typeof findAction>>> {
+  const deadline = Date.now() + ACTION_DISCOVERY_GRACE_MS;
+  let waitStepAdded = false;
+
+  while (job.status === "running" && !job.cancelRequested && !page.isClosed()) {
+    if ((await inspectHumanVerification(page)).blocked) {
+      blockDownloadAtHumanVerification(job, page.url());
+      return null;
+    }
+
+    const action = await findAction(page, attemptedActions, preferredLabel);
+    if (action) return action;
+
+    const remainingMs = deadline - Date.now();
+    if (remainingMs <= 0) break;
+    if (!waitStepAdded) {
+      addStep(
+        job,
+        "wait",
+        "Menunggu tombol lanjutan dimuat setelah jeda halaman.",
+        page.url(),
+      );
+      waitStepAdded = true;
+    }
+    await waitWhileRunning(job, Math.min(ACTION_DISCOVERY_POLL_MS, remainingMs));
+  }
+
+  return null;
+}
+
+async function inspectHumanVerification(
+  page: Page,
+): Promise<{ text: string; blocked: boolean }> {
+  const text = await page
+    .evaluate(() => `${document.title}\n${document.body?.innerText ?? ""}`)
+    .catch(() => "");
+  const cloudflareFrame = await page
+    .$(
+      'iframe[src*="challenges.cloudflare.com"], iframe[src*="cloudflare"], iframe[title*="challenge"]',
+    )
+    .then(Boolean)
+    .catch(() => false);
+  return {
+    text,
+    blocked: isHumanVerification(text, page.url()) || cloudflareFrame,
+  };
+}
+
+function blockDownloadAtHumanVerification(job: DownloadJob, url: string): void {
+  job.status = "blocked";
+  job.error =
+    "Cloudflare meminta verifikasi manusia. Proses berhenti di sini dan tidak akan mencentang atau melewati verifikasi.";
+  job.message = job.error;
+  addStep(job, "notice", job.error, url);
 }
 
 function isHumanVerification(text: string, url: string): boolean {
