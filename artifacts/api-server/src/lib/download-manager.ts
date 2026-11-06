@@ -80,6 +80,7 @@ const OPEN_ACTION_WAIT_MS = 10_000;
 const NEXT_ACTION_WAIT_MS = 1_000;
 const DEFAULT_ACTION_WAIT_MS = 3_000;
 const ACTION_DISCOVERY_GRACE_MS = 3_000;
+const ACTION_DISCOVERY_MAX_WAIT_MS = 15_000;
 const ACTION_DISCOVERY_POLL_MS = 400;
 const jobs = new Map<string, DownloadJob>();
 const queuedWorkers: Array<() => void> = [];
@@ -777,10 +778,14 @@ async function runBrowserFlow(job: DownloadJob): Promise<void> {
       if (nextAction) {
         enqueueFlowPage(current, current !== page);
       } else if (job.status === "running" && !job.cancelRequested) {
+        const controlState = await inspectVisibleActionControls(current);
+        const controlSummary = controlState.labels.length
+          ? ` Kontrol terlihat: ${controlState.labels.join(" | ").slice(0, 180)}.`
+          : " Tidak ada kontrol tombol Sfile yang terlihat.";
         addStep(
           job,
           "notice",
-          "Tombol lanjutan yang didukung tidak muncul setelah jeda halaman.",
+          `Tombol lanjutan yang didukung tidak muncul setelah jeda halaman.${controlSummary}`,
           current.url(),
         );
       }
@@ -905,8 +910,10 @@ async function waitForActionToAppear(
   attemptedActions: Set<string>,
   preferredLabel: string | null,
 ): Promise<Awaited<ReturnType<typeof findAction>>> {
-  const deadline = Date.now() + ACTION_DISCOVERY_GRACE_MS;
+  const maxDeadline = Date.now() + ACTION_DISCOVERY_MAX_WAIT_MS;
+  let deadline = Math.min(Date.now() + ACTION_DISCOVERY_GRACE_MS, maxDeadline);
   let waitStepAdded = false;
+  let countdownStepAdded = false;
 
   while (job.status === "running" && !job.cancelRequested && !page.isClosed()) {
     if ((await inspectHumanVerification(page)).blocked) {
@@ -917,21 +924,93 @@ async function waitForActionToAppear(
     const action = await findAction(page, attemptedActions, preferredLabel);
     if (action) return action;
 
+    const controlState = await inspectVisibleActionControls(page);
+    const countdownSeconds = controlState.countdownSeconds;
+    if (countdownSeconds !== null) {
+      const countdownMs = Math.min(
+        (countdownSeconds + 1) * 1_000,
+        ACTION_DISCOVERY_MAX_WAIT_MS,
+      );
+      deadline = Math.max(deadline, Math.min(maxDeadline, Date.now() + countdownMs));
+      if (!countdownStepAdded) {
+        addStep(
+          job,
+          "wait",
+          `Menunggu hitung mundur tombol selesai (${countdownSeconds} detik).`,
+          page.url(),
+        );
+        countdownStepAdded = true;
+      }
+    }
+
     const remainingMs = deadline - Date.now();
     if (remainingMs <= 0) break;
     if (!waitStepAdded) {
-      addStep(
-        job,
-        "wait",
-        "Menunggu tombol lanjutan dimuat setelah jeda halaman.",
-        page.url(),
-      );
+      if (countdownSeconds === null) {
+        addStep(
+          job,
+          "wait",
+          "Menunggu tombol lanjutan dimuat setelah jeda halaman.",
+          page.url(),
+        );
+      }
       waitStepAdded = true;
     }
     await waitWhileRunning(job, Math.min(ACTION_DISCOVERY_POLL_MS, remainingMs));
   }
 
   return null;
+}
+
+async function inspectVisibleActionControls(
+  page: Page,
+): Promise<{ countdownSeconds: number | null; labels: string[] }> {
+  return page
+    .evaluate(() => {
+      const controls = [
+        ...document.querySelectorAll<HTMLElement>(
+          ".slbtn, button, a, input[type=submit], [role=button]",
+        ),
+      ];
+      const labels: string[] = [];
+      let countdownSeconds: number | null = null;
+      for (const element of controls) {
+        const rect = element.getBoundingClientRect();
+        const style = window.getComputedStyle(element);
+        if (
+          rect.width <= 0 ||
+          rect.height <= 0 ||
+          style.visibility === "hidden" ||
+          style.display === "none"
+        ) {
+          continue;
+        }
+        const label = (
+          element.innerText ||
+          (element as HTMLInputElement).value ||
+          element.getAttribute("aria-label") ||
+          ""
+        )
+          .trim()
+          .replace(/\s+/g, " ")
+          .slice(0, 80);
+        if (!label) continue;
+        if (
+          /wait|waiting|tunggu|open|next|continue|link|download|unduh|lanjut|proceed/i.test(
+            label,
+          ) &&
+          labels.length < 8
+        ) {
+          labels.push(label);
+        }
+        const match = label.match(
+          /\b(?:wait(?:ing)?|tunggu)\D{0,20}(\d+)\s*(?:seconds?|secs?|s)\b/i,
+        );
+        if (match) countdownSeconds = Number(match[1]);
+      }
+      return { countdownSeconds, labels };
+    })
+    .catch(() => ({ countdownSeconds: null, labels: [] }));
 }
 
 async function inspectHumanVerification(
