@@ -175,7 +175,7 @@ function Home() {
             <h1 id="page-title" className="card-title" data-testid="text-page-title">ZeroAds Downloader</h1>
             <p className="card-subtitle">BYPASS SEMUA SHORT LINK</p>
             <p className="card-description">
-              Bypass <strong>SFL.GL</strong> · <strong>SFILE.CO</strong> · <strong>SFILE.MOBI</strong> · <strong>SAFELINKU</strong> · <strong>SAFILEKU</strong>
+              Bypass <strong>SFL.GL</strong> · <strong>SFILE.CO</strong> · <strong>SFILE.MOBI</strong> · <strong>SAFELINKU</strong> · <strong>SAFILEKU</strong>, dan lain-lain.
             </p>
           </div>
 
