@@ -1,3 +1,4 @@
 - [Sfile downloader platform](sfile-downloader-platform.md) — Keep link handling in the web app itself; do not require 1DM or another external download manager.
 - [Downloader runtime timeouts](sfile-downloader-runtime.md) — Bound browser commands and disable status caching so slow clicks and polling do not look stuck.
 - [Sfile short-link flow](sfile-link-flow.md) — Follow the ordered Open/Next/Continue/Go-to-link steps, scroll, timed waits, and final ready countdown.
+- [GitHub pushes from this Repl](github-push.md) — Confirm the remote branch is a fast-forward target before pushing; a GitHub connector may not be the usable route.
