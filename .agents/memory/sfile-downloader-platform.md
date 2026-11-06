@@ -26,3 +26,9 @@ Keep the exact product name “ZeroAds Downloader”; do not rename the page or 
 **Why:** The user explicitly requested ZeroAds Downloader and corrected a regression where the visible page title and footer had changed.
 
 **How to apply:** Preserve ZeroAds Downloader in the page title, browser metadata, and footer. Treat screenshot references as visual guidance, not permission to change the product name. Keep the feature chips visible during processing, show one spinner and an elapsed-seconds timer in the primary button, hide cancellation controls, and present only real file or validated Safefileku URL results.
+
+Before continuing feature development, keep GitHub repository readiness, Vercel deployment compatibility, and clear feature boundaries as project requirements.
+
+**Why:** The user asked to pause feature work until the site can run from GitHub and on Vercel, with features separated into focused files.
+
+**How to apply:** Assess the existing Express, Puppeteer/Chromium, job-duration, and temporary-file requirements before choosing a Vercel architecture. Keep shared orchestration separate from each provider's flow; do not let one file accumulate unrelated features.
