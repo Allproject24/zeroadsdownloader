@@ -32,3 +32,9 @@ Before continuing feature development, keep GitHub repository readiness, Vercel 
 **Why:** The user asked to pause feature work until the site can run from GitHub and on Vercel, with features separated into focused files.
 
 **How to apply:** Assess the existing Express, Puppeteer/Chromium, job-duration, and temporary-file requirements before choosing a Vercel architecture. Keep shared orchestration separate from each provider's flow; do not let one file accumulate unrelated features.
+
+The user said the current appearance is final and deployment work must not change it.
+
+**Why:** The user explicitly asked that no further visual changes be made.
+
+**How to apply:** Limit this work to code organization and deployment configuration; preserve visible copy, layout, colors, and interactions unless the user asks otherwise.
