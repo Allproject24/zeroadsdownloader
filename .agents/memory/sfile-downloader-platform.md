@@ -21,8 +21,8 @@ Keep interface copy brief and neutral; avoid promotional or exaggerated wording 
 
 **How to apply:** Prefer a short page title, one direct input label, a simple action label, and concise result text.
 
-Keep the original ZeroAds Downloader name while using the latest reference's rounded black card, monochrome palette, clean sans-serif type, pale primary button, result card, and compact feature chips.
+Keep the exact product name “ZeroAds Downloader”; do not rename the page or footer to “Malz Bypass URL” or another name unless the user asks.
 
-**Why:** The user clarified that the new screenshot should guide the appearance, not replace the existing product name.
+**Why:** The user explicitly requested ZeroAds Downloader and corrected a regression where the visible page title and footer had changed.
 
-**How to apply:** Preserve the ZeroAds Downloader name in the page, browser metadata, and footer. Keep the feature chips visible during processing, show one spinner and an elapsed-seconds timer in the primary button, hide cancellation controls, and present only real file or validated Safefileku URL results.
+**How to apply:** Preserve ZeroAds Downloader in the page title, browser metadata, and footer. Treat screenshot references as visual guidance, not permission to change the product name. Keep the feature chips visible during processing, show one spinner and an elapsed-seconds timer in the primary button, hide cancellation controls, and present only real file or validated Safefileku URL results.
