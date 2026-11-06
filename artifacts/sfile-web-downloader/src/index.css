@@ -138,8 +138,9 @@ button:disabled {
 }
 
 .card-description strong {
-  color: #d8d8d8;
-  font-weight: 600;
+  color: #b9b9b9;
+  font-size: .9em;
+  font-weight: 500;
 }
 
 .download-form {
