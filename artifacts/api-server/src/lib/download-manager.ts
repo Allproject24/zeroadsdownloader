@@ -446,6 +446,8 @@ async function runBrowserFlow(job: DownloadJob): Promise<void> {
 
   const page = await browser.newPage();
   const knownPages = new WeakSet<Page>();
+  const passivePages = new WeakSet<Page>();
+  const passivePageNotices = new WeakSet<Page>();
   const pendingPages: Page[] = [page];
   const queuedPages = new WeakSet<Page>();
   queuedPages.add(page);
@@ -498,10 +500,12 @@ async function runBrowserFlow(job: DownloadJob): Promise<void> {
           request.frame() === target.mainFrame() &&
           !isFlowUrl(rawUrl)
         ) {
-          addStep(job, "notice", "Tab di luar alur unduhan Sfile diabaikan.", rawUrl);
-          await request.abort("blockedbyclient");
-          if (target !== page) void target.close().catch(() => undefined);
-          return;
+          if (target === page || !passivePages.has(target)) {
+            addStep(job, "notice", "Pengalihan utama di luar alur unduhan diblokir.", rawUrl);
+            await request.abort("blockedbyclient");
+            if (target !== page) void target.close().catch(() => undefined);
+            return;
+          }
         }
         let check = hostCache.get(parsed.hostname);
         if (!check) {
@@ -529,13 +533,37 @@ async function runBrowserFlow(job: DownloadJob): Promise<void> {
       const url = frame.url();
       if (!url || url === "about:blank") return;
       if (!isFlowUrl(url)) {
+        if (target !== page && passivePages.has(target)) {
+          if (!passivePageNotices.has(target)) {
+            passivePageNotices.add(target);
+            addStep(
+              job,
+              "notice",
+              "Tab pengalihan dibuka di latar; halaman unduhan tetap aktif.",
+              url,
+            );
+          }
+          return;
+        }
         addStep(job, "notice", "Tab di luar alur unduhan Sfile diabaikan.", url);
         if (target !== page) void target.close().catch(() => undefined);
         return;
       }
       if (target !== page && !isFlowUrl(url, SAFE_POPUP_HOSTS)) {
-        addStep(job, "notice", "Tab latar yang bukan tujuan unduhan diabaikan.", url);
-        void target.close().catch(() => undefined);
+        if (passivePages.has(target)) {
+          if (!passivePageNotices.has(target)) {
+            passivePageNotices.add(target);
+            addStep(
+              job,
+              "notice",
+              "Tab pengalihan dibuka di latar; halaman unduhan tetap aktif.",
+              url,
+            );
+          }
+        } else {
+          addStep(job, "notice", "Tab latar yang bukan tujuan unduhan diabaikan.", url);
+          void target.close().catch(() => undefined);
+        }
         return;
       }
       addStep(job, "redirect", "Halaman berpindah ke langkah berikutnya.", url);
@@ -543,12 +571,23 @@ async function runBrowserFlow(job: DownloadJob): Promise<void> {
     });
     target.on("popup", (popup) => {
       if (!popup) return;
+      passivePages.add(popup);
       void attachPage(popup).then(() => {
         if (isFlowUrl(popup.url(), SAFE_POPUP_HOSTS)) {
           enqueueFlowPage(popup, true);
         } else if (popup.url() !== "about:blank") {
-          addStep(job, "notice", "Tab di luar alur unduhan Sfile diabaikan.", popup.url());
-          void popup.close().catch(() => undefined);
+          if (!passivePageNotices.has(popup)) {
+            passivePageNotices.add(popup);
+            addStep(
+              job,
+              "notice",
+              "Tab pengalihan dibuka di latar; halaman unduhan tetap aktif.",
+              popup.url(),
+            );
+          }
+        }
+        if (isFlowUrl(target.url())) {
+          void target.bringToFront().catch(() => undefined);
         }
       }).catch(() => popup.close().catch(() => undefined));
     });
@@ -640,6 +679,7 @@ async function runBrowserFlow(job: DownloadJob): Promise<void> {
         .catch(() => undefined);
       await waitWhileRunning(job, 300);
     }
+    await current.bringToFront().catch(() => undefined);
     const nextPreferred = preferredNextAction(action.label, actionHistory);
     actionHistory.push(normalizeActionLabel(action.label));
     if (nextPreferred) preferredActionsByPage.set(current, nextPreferred);
@@ -680,6 +720,16 @@ async function runBrowserFlow(job: DownloadJob): Promise<void> {
         enqueueFlowPage(newPage);
       } else if (isFlowUrl(newPage.url(), SAFE_POPUP_HOSTS)) {
         enqueueFlowPage(newPage, true);
+      } else if (passivePages.has(newPage)) {
+        if (newPage.url() !== "about:blank" && !passivePageNotices.has(newPage)) {
+          passivePageNotices.add(newPage);
+          addStep(
+            job,
+            "notice",
+            "Tab pengalihan dibuka di latar; halaman unduhan tetap aktif.",
+            newPage.url(),
+          );
+        }
       } else if (newPage.url() !== "about:blank") {
         addStep(job, "notice", "Tab di luar alur unduhan Sfile diabaikan.", newPage.url());
         void newPage.close().catch(() => undefined);
