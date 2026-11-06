@@ -19,6 +19,7 @@
       "framework": "express",
       "entrypoint": "src/index.ts",
       "installCommand": "pnpm install --frozen-lockfile --include-workspace-root --filter @workspace/api-server...",
+      "buildCommand": "pnpm --filter @workspace/api-server run build",
       "functions": {
         "src/index.ts": {
           "maxDuration": 300,
