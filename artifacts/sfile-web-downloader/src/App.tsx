@@ -256,7 +256,6 @@ function Home() {
                 <div className="result-card manual-result" data-testid="text-terminal-guidance">
                   <div className="result-eyebrow">LINK ASLI</div>
                   <code className="manual-url">{manualSafefilekuUrl}</code>
-                  <p className="result-note">Safefileku meminta verifikasi lanjutan.</p>
                   <div className="result-actions">
                     <button className="result-action" type="button" onClick={() => void copyManualUrl()}>
                       {copyFeedback === 'URL disalin' ? <Check size={15} /> : <Copy size={15} />}
@@ -296,7 +295,7 @@ function Home() {
           ) : (
             <>
               <div className="card-divider" aria-hidden="true" />
-              <div className="card-footer">© 2026 ZeroAds Downloader</div>
+              <div className="card-footer">© 2026 Malz Bypass URL</div>
             </>
           )}
         </section>

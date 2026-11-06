@@ -345,6 +345,10 @@ button:disabled {
   letter-spacing: .18em;
 }
 
+.manual-result .result-eyebrow {
+  text-align: center;
+}
+
 .success-result .result-eyebrow {
   grid-column: 1 / -1;
 }
@@ -388,13 +392,12 @@ button:disabled {
   display: block;
   padding: 14px;
   border-radius: 14px;
-  color: #d2d2d2;
+  color: #8ed794;
   background: #080808;
   font: 12px/1.7 var(--app-font-mono);
   overflow-wrap: anywhere;
 }
 
-.result-note,
 .copy-feedback {
   margin: 0;
   color: #888;
@@ -462,21 +465,6 @@ button:disabled {
   height: 1px;
   margin-top: 18px;
   background: linear-gradient(90deg, transparent, rgb(255 255 255 / .12), transparent);
-}
-
-.home-link {
-  align-self: flex-start;
-  margin-top: 18px;
-  padding: 0;
-  border: 0;
-  color: #8c8c8c;
-  background: transparent;
-  font-size: 12px;
-  text-decoration: none;
-}
-
-.home-link:hover {
-  color: #e3e3e3;
 }
 
 .screen-reader {
