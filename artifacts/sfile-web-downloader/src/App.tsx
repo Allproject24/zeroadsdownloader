@@ -150,17 +150,6 @@ function Home() {
     }
   };
 
-  const returnToHome = () => {
-    setActiveJobId('');
-    setUrl('');
-    setInputError('');
-    setStartError('');
-    setDownloadError('');
-    setCopyFeedback('');
-    setStartedAt(null);
-    setElapsedSeconds(1);
-  };
-
   const isActive = job?.status === 'queued' || job?.status === 'running';
   const isProcessing =
     startDownload.isPending ||
@@ -183,7 +172,7 @@ function Home() {
         <section className="downloader-card" aria-labelledby="page-title">
           <div className="card-brand" data-testid="header-brand">
             <div className="brand-mark" aria-hidden="true"><CloudDownload size={21} strokeWidth={2} /></div>
-            <h1 id="page-title" className="card-title" data-testid="text-page-title">ZeroAds Downloader</h1>
+            <h1 id="page-title" className="card-title" data-testid="text-page-title">Malz Bypass URL</h1>
             <p className="card-subtitle">BYPASS SEMUA SHORT LINK</p>
             <p className="card-description">
               Bypass <strong>SFL.GL</strong> · <strong>SFILE.CO</strong> · <strong>SFILE.MOBI</strong> · <strong>SAFELINKU</strong> · <strong>SAFILEKU</strong>
@@ -290,14 +279,8 @@ function Home() {
             <span>Support All Device</span>
           </div>
 
-          {activeJobId && !isProcessing ? (
-            <button className="home-link" type="button" onClick={returnToHome}>Kembali ke Beranda</button>
-          ) : (
-            <>
-              <div className="card-divider" aria-hidden="true" />
-              <div className="card-footer">© 2026 Malz Bypass URL</div>
-            </>
-          )}
+          <div className="card-divider" aria-hidden="true" />
+          <div className="card-footer">© 2026 Malz Bypass URL</div>
         </section>
       </main>
     </div>
