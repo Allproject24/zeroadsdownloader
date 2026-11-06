@@ -1,12 +1,44 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "installCommand": "pnpm install --frozen-lockfile --include-workspace-root --filter @workspace/sfile-web-downloader... --filter @workspace/api-server...",
-  "buildCommand": "pnpm --filter @workspace/sfile-web-downloader run build:vercel",
-  "outputDirectory": "public",
-  "functions": {
-    "src/index.ts": {
-      "maxDuration": 300,
-      "includeFiles": "node_modules/.pnpm/@sparticuz+chromium@*/node_modules/@sparticuz/chromium/bin/**"
+  "services": {
+    "web": {
+      "root": "artifacts/sfile-web-downloader",
+      "framework": "vite",
+      "installCommand": "pnpm install --frozen-lockfile --include-workspace-root --filter @workspace/sfile-web-downloader...",
+      "buildCommand": "pnpm --filter @workspace/sfile-web-downloader run build:vercel",
+      "outputDirectory": "dist/public",
+      "rewrites": [
+        {
+          "source": "/(.*)",
+          "destination": "/index.html"
+        }
+      ]
+    },
+    "api": {
+      "root": ".",
+      "framework": "express",
+      "entrypoint": "src/index.ts",
+      "installCommand": "pnpm install --frozen-lockfile --include-workspace-root --filter @workspace/api-server...",
+      "functions": {
+        "src/index.ts": {
+          "maxDuration": 300,
+          "includeFiles": "node_modules/.pnpm/@sparticuz+chromium@*/node_modules/@sparticuz/chromium/bin/**"
+        }
+      }
     }
-  }
+  },
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": {
+        "service": "api"
+      }
+    },
+    {
+      "source": "/(.*)",
+      "destination": {
+        "service": "web"
+      }
+    }
+  ]
 }

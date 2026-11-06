@@ -52,7 +52,7 @@ export default defineConfig(async ({ mode }) => {
     root: path.resolve(import.meta.dirname),
     build: {
       outDir: vercelBuild
-        ? path.resolve(import.meta.dirname, '..', '..', 'public')
+        ? path.resolve(import.meta.dirname, 'dist/public')
         : path.resolve(import.meta.dirname, 'dist/public'),
       emptyOutDir: true,
       rollupOptions: {
