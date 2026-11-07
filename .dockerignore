@@ -1,0 +1,13 @@
+.git
+.local
+.agents
+.replit
+.replit*
+node_modules
+**/node_modules
+**/dist
+**/.tsbuildinfo
+attached_assets
+*.log
+.env
+.env.*
