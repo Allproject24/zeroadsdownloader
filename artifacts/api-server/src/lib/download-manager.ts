@@ -732,6 +732,7 @@ async function runBrowserFlow(job: DownloadJob): Promise<void> {
         enqueueFlowPage(current, current !== page);
         continue;
       }
+      if (current.isClosed()) continue;
       const latest = await inspectHumanVerification(current);
       if (!current.isClosed() && !latest.blocked && !latest.interstitial) {
         enqueueFlowPage(current, current !== page);
@@ -1048,6 +1049,27 @@ async function waitForActionToAppear(
       );
       return null;
     }
+      if (verification.interstitial) {
+        const remainingMs = Math.max(
+          0,
+          Math.min(PASSIVE_CHALLENGE_GRACE_MS, deadline - Date.now()),
+        );
+        const outcome = await waitForTransientChallenge(job, page, remainingMs);
+        if (job.status !== "running" || job.cancelRequested) return null;
+        if (page.isClosed()) return null;
+        if (outcome === "resolved") continue;
+
+        const latest = await inspectHumanVerification(page);
+        if (!page.isClosed() && !latest.blocked && !latest.interstitial) continue;
+        blockDownloadAtHumanVerification(
+          job,
+          latest.url ?? page.url(),
+          latest.blocked
+            ? latest.reason
+            : "Pemeriksaan Cloudflare belum berlanjut setelah jeda otomatis; URL asli belum terlihat.",
+        );
+        return null;
+      }
 
     const action = await findAction(page, attemptedActions, preferredLabel);
     if (action) return action;
@@ -1255,22 +1277,32 @@ function blockDownloadAtHumanVerification(
 async function waitForTransientChallenge(
   job: DownloadJob,
   page: Page,
+  durationMs = PASSIVE_CHALLENGE_GRACE_MS,
 ): Promise<"resolved" | "timed_out" | "stopped"> {
-  const deadline = Date.now() + PASSIVE_CHALLENGE_GRACE_MS;
-  while (Date.now() < deadline && job.status === "running" && !job.cancelRequested) {
-    if (page.isClosed()) return "stopped";
-    const observedUrl = getManualSafefilekuUrl(page.url());
-    if (observedUrl) {
-      rememberManualSafefilekuUrl(job, observedUrl);
-      return "stopped";
-    }
-    await waitWhileRunning(job, Math.min(500, deadline - Date.now()));
-    if (job.status !== "running" || job.cancelRequested) return "stopped";
-    const verification = await inspectHumanVerification(page);
-    if (verification.blocked) return "stopped";
-    if (!verification.interstitial) return "resolved";
+  if (job.status !== "running" || job.cancelRequested || page.isClosed()) {
+    return "stopped";
   }
-  return job.status === "running" ? "timed_out" : "stopped";
+  const observedUrl = getManualSafefilekuUrl(page.url());
+  if (observedUrl) {
+    rememberManualSafefilekuUrl(job, observedUrl);
+    return "stopped";
+  }
+
+  await waitWhileRunning(job, durationMs);
+  if (job.status !== "running" || job.cancelRequested || page.isClosed()) {
+    return "stopped";
+  }
+
+  const latestObservedUrl = getManualSafefilekuUrl(page.url());
+  if (latestObservedUrl) {
+    rememberManualSafefilekuUrl(job, latestObservedUrl);
+    return "stopped";
+  }
+
+  const verification = await inspectHumanVerification(page);
+  return verification.blocked || verification.interstitial
+    ? "timed_out"
+    : "resolved";
 }
 
 function isHumanVerification(text: string): boolean {
