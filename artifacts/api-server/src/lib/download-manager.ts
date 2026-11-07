@@ -1202,12 +1202,14 @@ async function inspectHumanVerification(
         }));
 
       const humanText = isHumanVerification(result.text);
-      const blocked = humanText || result.hasHumanWidget;
+      const looksLikeInterstitial =
+        isCloudflareChallengeUrl(url) ||
+        /just a moment|checking your browser/i.test(result.text) ||
+        result.hasChallengeFrame;
+      const blocked =
+        !looksLikeInterstitial && (humanText || result.hasHumanWidget);
       const interstitial =
-        !blocked &&
-        (isCloudflareChallengeUrl(url) ||
-          /just a moment|checking your browser/i.test(result.text) ||
-          result.hasChallengeFrame);
+        !blocked && (looksLikeInterstitial || result.hasHumanWidget);
       const title = result.text.split("\n")[0]?.trim().slice(0, 60) ?? "";
       const reason = humanText
         ? `teks verifikasi manusia; judul: “${title}”`
