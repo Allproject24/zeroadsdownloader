@@ -89,6 +89,8 @@ const DEFAULT_ACTION_WAIT_MS = 3_000;
 const ACTION_DISCOVERY_GRACE_MS = 3_000;
 const ACTION_DISCOVERY_MAX_WAIT_MS = 15_000;
 const ACTION_DISCOVERY_POLL_MS = 400;
+const CLOUDFLARE_CHECK_GRACE_MS = 12_000;
+const CLOUDFLARE_CHECK_POLL_MS = 500;
 const jobs = new Map<string, DownloadJob>();
 const queuedWorkers: Array<() => void> = [];
 let activeWorkers = 0;
@@ -687,7 +689,8 @@ async function runBrowserFlow(job: DownloadJob): Promise<void> {
     if (job.status !== "running" || current.isClosed()) break;
 
     const currentUrl = current.url();
-    const verification = await inspectHumanVerification(current);
+    const verification = await waitForHumanVerification(job, current);
+    if (job.status !== "running" || current.isClosed()) break;
     const text = verification.text;
     if (verification.blocked) {
       blockDownloadAtHumanVerification(job, currentUrl);
@@ -964,7 +967,11 @@ async function waitForActionToAppear(
   let countdownStepAdded = false;
 
   while (job.status === "running" && !job.cancelRequested && !page.isClosed()) {
-    if ((await inspectHumanVerification(page)).blocked) {
+    const verification = await waitForHumanVerification(job, page);
+    if (job.status !== "running" || job.cancelRequested || page.isClosed()) {
+      return null;
+    }
+    if (verification.blocked) {
       blockDownloadAtHumanVerification(job, page.url());
       return null;
     }
@@ -1079,6 +1086,46 @@ async function inspectHumanVerification(
   };
 }
 
+async function waitForHumanVerification(
+  job: DownloadJob,
+  page: Page,
+): Promise<{ text: string; blocked: boolean }> {
+  let verification = await inspectHumanVerification(page);
+  if (job.status !== "running" || job.cancelRequested || page.isClosed()) {
+    return { ...verification, blocked: false };
+  }
+  if (!verification.blocked || isExplicitHumanVerification(verification.text)) {
+    return verification;
+  }
+
+  addStep(
+    job,
+    "wait",
+    "Menunggu pemeriksaan otomatis Cloudflare.",
+    page.url(),
+  );
+  const deadline = Date.now() + CLOUDFLARE_CHECK_GRACE_MS;
+  while (
+    Date.now() < deadline &&
+    job.status === "running" &&
+    !job.cancelRequested &&
+    !page.isClosed()
+  ) {
+    await waitWhileRunning(job, CLOUDFLARE_CHECK_POLL_MS);
+    verification = await inspectHumanVerification(page);
+    if (job.status !== "running" || job.cancelRequested || page.isClosed()) {
+      return { ...verification, blocked: false };
+    }
+    if (
+      !verification.blocked ||
+      isExplicitHumanVerification(verification.text)
+    ) {
+      return verification;
+    }
+  }
+  return verification;
+}
+
 function blockDownloadAtHumanVerification(job: DownloadJob, url: string): void {
   job.status = "blocked";
   rememberManualSafefilekuUrl(job, url);
@@ -1095,6 +1142,12 @@ function isHumanVerification(text: string, url: string): boolean {
       `${text}\n${url}`,
     ) ||
     /\/cdn-cgi\/challenge-platform\//i.test(url)
+  );
+}
+
+function isExplicitHumanVerification(text: string): boolean {
+  return /verify (?:that )?you are human|verifying (?:that )?you are human|i am human|i'm human|human verification|complete the security check/i.test(
+    text,
   );
 }
 
