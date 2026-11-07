@@ -51,6 +51,12 @@ The source repository is GitHub and the production deployment is Vercel; Replit 
 
 **How to apply:** Verify Vercel-compatible builds and distinguish local checks from production success; do not claim a Vercel deploy unless it is actually confirmed.
 
+Do not run the downloader's web, API, or preview services on Replit. Vercel is the only runtime and deployment target.
+
+**Why:** The user explicitly said nothing should run on Replit and everything must run on Vercel. Connecting the Vercel integration also caused the Replit workflows to start again after they had been stopped.
+
+**How to apply:** Keep all Replit workflows stopped and recheck them after integration changes. Local build checks may validate compilation, but only a current Vercel deployment can confirm runtime behavior.
+
 For production debugging, do not guess missing URLs, branches, or deployment behavior. First confirm the change is in the configured GitHub production branch and that Vercel has deployed that commit; only then test the live deployment. Replit preview is not a substitute for Vercel verification.
 
 **Why:** The user corrected the sequence after being asked for a Vercel URL before the change had reached GitHub; the Replit preview was already known to work and was not the target.
