@@ -1,5 +1,5 @@
 - [Sfile downloader platform](sfile-downloader-platform.md) — Keep link handling in the web app itself; do not require 1DM or another external download manager.
 - [Downloader runtime timeouts](sfile-downloader-runtime.md) — Bound browser commands and disable status caching so slow clicks and polling do not look stuck.
 - [Vercel downloader runtime](sfile-vercel-runtime.md) — Verify the challenged host; Vercel may stop at sfl.gl before any Safefileku destination URL exists.
-- [Sfile short-link flow](sfile-link-flow.md) — Follow the ordered Open/Next/Continue/Go-to-link steps, scroll, timed waits, and final ready countdown.
+- [Sfile short-link flow](sfile-link-flow.md) — Skip ad/short-link steps, hand off the original Safefileku URL, and keep final verification user-managed.
 - [GitHub pushes from this Repl](github-push.md) — Confirm the remote branch is a fast-forward target before pushing; a GitHub connector may not be the usable route.
