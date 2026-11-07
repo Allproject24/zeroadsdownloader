@@ -692,7 +692,7 @@ async function runBrowserFlow(job: DownloadJob): Promise<void> {
     const verification = await inspectHumanVerification(current);
     const text = verification.text;
     if (verification.blocked) {
-      blockDownloadAtHumanVerification(job, currentUrl);
+      blockDownloadAtHumanVerification(job, verification.url ?? currentUrl);
       break;
     }
 
@@ -966,8 +966,9 @@ async function waitForActionToAppear(
   let countdownStepAdded = false;
 
   while (job.status === "running" && !job.cancelRequested && !page.isClosed()) {
-    if ((await inspectHumanVerification(page)).blocked) {
-      blockDownloadAtHumanVerification(job, page.url());
+    const verification = await inspectHumanVerification(page);
+    if (verification.blocked) {
+      blockDownloadAtHumanVerification(job, verification.url ?? page.url());
       return null;
     }
 
@@ -1065,20 +1066,51 @@ async function inspectVisibleActionControls(
 
 async function inspectHumanVerification(
   page: Page,
-): Promise<{ text: string; blocked: boolean }> {
-  const text = await page
-    .evaluate(() => `${document.title}\n${document.body?.innerText ?? ""}`)
-    .catch(() => "");
-  const cloudflareFrame = await page
-    .$(
-      'iframe[src*="challenges.cloudflare.com"], iframe[src*="cloudflare"], iframe[title*="challenge"]',
-    )
-    .then(Boolean)
-    .catch(() => false);
+): Promise<{ text: string; blocked: boolean; url: string | null }> {
+  const frameResults = await Promise.all(
+    page.frames().map(async (frame) => {
+      const url = frame.url();
+      if (!isFlowUrl(url) && !isCloudflareChallengeUrl(url)) return null;
+
+      const result = await frame
+        .evaluate(() => ({
+          text: `${document.title}\n${document.body?.innerText ?? ""}`.slice(0, 12_000),
+          hasChallengeFrame: Array.from(document.querySelectorAll("iframe")).some((iframe) => {
+            const source = iframe.getAttribute("src") ?? "";
+            const title = iframe.getAttribute("title") ?? "";
+            return /cloudflare|turnstile/i.test(source) || /challenge|verification/i.test(title);
+          }),
+        }))
+        .catch(() => ({ text: "", hasChallengeFrame: false }));
+
+      const blocked =
+        isHumanVerification(result.text, url) || result.hasChallengeFrame;
+      return { text: result.text, blocked, url };
+    }),
+  );
+  const matchingFrame = frameResults.find((result) => result?.blocked);
+  const text = frameResults
+    .flatMap((result) => (result ? [result.text] : []))
+    .join("\n")
+    .slice(0, 40_000);
+
   return {
     text,
-    blocked: isHumanVerification(text, page.url()) || cloudflareFrame,
+    blocked: Boolean(matchingFrame),
+    url: matchingFrame?.url ?? null,
   };
+}
+
+function isCloudflareChallengeUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return (
+      url.hostname.toLowerCase() === "challenges.cloudflare.com" ||
+      /^\/cdn-cgi\/challenge-platform(?:\/|$)/i.test(url.pathname)
+    );
+  } catch {
+    return false;
+  }
 }
 
 function blockDownloadAtHumanVerification(job: DownloadJob, url: string): void {
