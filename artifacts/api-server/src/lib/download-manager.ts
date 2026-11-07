@@ -534,16 +534,17 @@ async function runBrowserFlow(job: DownloadJob): Promise<void> {
     uniqueTabs += 1;
     target.setDefaultNavigationTimeout(25_000);
     target.setDefaultTimeout(8_000);
+    rememberManualSafefilekuUrl(job, target.url());
+    target.on("framenavigated", (frame) => {
+      rememberManualSafefilekuUrl(job, frame.url());
+    });
 
     const hostCache = new Map<string, Promise<boolean>>();
     await target.setRequestInterception(true);
     target.on("request", (request) => {
       void (async () => {
         const rawUrl = request.url();
-        if (
-          request.isNavigationRequest() &&
-          request.frame() === target.mainFrame()
-        ) {
+        if (request.isNavigationRequest()) {
           rememberManualSafefilekuUrl(job, rawUrl);
           for (const redirectedRequest of request.redirectChain()) {
             rememberManualSafefilekuUrl(job, redirectedRequest.url());
@@ -591,6 +592,7 @@ async function runBrowserFlow(job: DownloadJob): Promise<void> {
     });
 
     target.on("response", (response) => {
+      rememberManualSafefilekuUrl(job, response.url());
       const disposition = response.headers()["content-disposition"] ?? "";
       if (response.status() >= 200 && response.status() < 300 && /attachment/i.test(disposition)) {
         job.attachmentUrls.add(response.url());
@@ -598,10 +600,10 @@ async function runBrowserFlow(job: DownloadJob): Promise<void> {
     });
 
     target.on("framenavigated", (frame) => {
-      if (frame !== target.mainFrame()) return;
       const url = frame.url();
       if (!url || url === "about:blank") return;
       rememberManualSafefilekuUrl(job, url);
+      if (frame !== target.mainFrame()) return;
       if (!isFlowUrl(url)) {
         if (target !== page && passivePages.has(target)) {
           if (!passivePageNotices.has(target)) {
