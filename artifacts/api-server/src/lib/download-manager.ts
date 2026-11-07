@@ -8,6 +8,7 @@ import { randomUUID } from "node:crypto";
 import chromium from "@sparticuz/chromium";
 import puppeteer, {
   type Browser,
+  type HTTPResponse,
   type Page,
 } from "puppeteer-core";
 
@@ -232,6 +233,45 @@ function safeDisplayUrl(value: string): string {
     return `${url.origin}${url.pathname}`.slice(0, 300);
   } catch {
     return "";
+  }
+}
+
+function safeRedirectTarget(response: HTTPResponse): string | null {
+  const location = response.headers()["location"];
+  if (!location || response.status() < 300 || response.status() >= 400) {
+    return null;
+  }
+
+  try {
+    return safeDisplayUrl(new URL(location, response.url()).toString()) || null;
+  } catch {
+    return null;
+  }
+}
+
+function describeFlowNavigation(previousUrl: string | null, currentUrl: string): string {
+  let current: URL;
+  try {
+    current = new URL(currentUrl);
+  } catch {
+    return "Navigasi browser terdeteksi; host tujuan tidak dapat dipastikan.";
+  }
+
+  if (!previousUrl) {
+    return `Halaman alur terdeteksi di ${current.hostname}; perpindahan host belum terkonfirmasi.`;
+  }
+
+  try {
+    const previous = new URL(previousUrl);
+    if (previous.hostname.toLowerCase() !== current.hostname.toLowerCase()) {
+      return `Perpindahan host alur terkonfirmasi: ${previous.hostname} → ${current.hostname}.`;
+    }
+    if (previous.pathname === current.pathname) {
+      return `Navigasi browser terdeteksi; host dan path masih ${current.hostname}${current.pathname}. Host langkah berikutnya belum terkonfirmasi.`;
+    }
+    return `Navigasi browser terdeteksi di ${current.hostname}; path berubah, tetapi perpindahan host belum terkonfirmasi.`;
+  } catch {
+    return `Navigasi browser terdeteksi di ${current.hostname}; perpindahan host belum terkonfirmasi.`;
   }
 }
 
@@ -577,6 +617,7 @@ async function runBrowserFlow(job: DownloadJob): Promise<void> {
     target.setDefaultNavigationTimeout(25_000);
     target.setDefaultTimeout(8_000);
     rememberManualSafefilekuUrl(job, target.url());
+    let previousMainFrameUrl: string | null = null;
     target.on("framenavigated", (frame) => {
       rememberManualSafefilekuUrl(job, frame.url());
     });
@@ -643,10 +684,11 @@ async function runBrowserFlow(job: DownloadJob): Promise<void> {
         response.request().isNavigationRequest() &&
         response.frame() === target.mainFrame()
       ) {
+        const redirectTarget = safeRedirectTarget(response);
         addStep(
           job,
           "redirect",
-          `Halaman merespons HTTP ${response.status()}.`,
+          `Halaman merespons HTTP ${response.status()}${redirectTarget ? `; Location: ${redirectTarget}` : ""}.`,
           response.url(),
         );
       }
@@ -679,6 +721,8 @@ async function runBrowserFlow(job: DownloadJob): Promise<void> {
         if (target !== page) void target.close().catch(() => undefined);
         return;
       }
+      const previousUrl = previousMainFrameUrl;
+      previousMainFrameUrl = url;
       if (target !== page && !isFlowUrl(url, SAFE_POPUP_HOSTS)) {
         if (passivePages.has(target)) {
           if (!passivePageNotices.has(target)) {
@@ -696,7 +740,7 @@ async function runBrowserFlow(job: DownloadJob): Promise<void> {
         }
         return;
       }
-      addStep(job, "redirect", "Halaman berpindah ke langkah berikutnya.", url);
+      addStep(job, "redirect", describeFlowNavigation(previousUrl, url), url);
       if (target !== page) enqueueFlowPage(target, true);
     });
     target.on("popup", (popup) => {
@@ -1322,8 +1366,8 @@ function blockDownloadAtHumanVerification(
   job.error =
     typeof reason === "string" &&
     reason.startsWith("Pemeriksaan Cloudflare belum berlanjut")
-      ? `Pemeriksaan Cloudflare di ${displayUrl} tidak berlanjut; URL asli belum terlihat. Verifikasi tidak dijalankan otomatis.`
-      : `Cloudflare meminta verifikasi manusia di ${displayUrl}${reason ? ` (${reason})` : ""}. Proses berhenti di sini dan tidak akan mencentang atau melewati verifikasi.`;
+      ? `Pemeriksaan akses di ${displayUrl} belum melanjutkan alur; URL tujuan belum terlihat.`
+      : `Halaman di ${displayUrl} meminta pemeriksaan tambahan; URL tujuan belum terlihat.`;
   job.message = job.error;
   addStep(job, "notice", job.error, url);
 }
