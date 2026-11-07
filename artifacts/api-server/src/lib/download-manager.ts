@@ -452,11 +452,13 @@ async function runJob(job: DownloadJob): Promise<void> {
 
   try {
     const configuredChromiumPath = process.env.CHROMIUM_PATH;
-    const usePackagedChromium = !configuredChromiumPath && process.env.VERCEL === "1";
+    const usePackagedChromium =
+      process.env.USE_PACKAGED_CHROMIUM === "1" ||
+      (!configuredChromiumPath && process.env.VERCEL === "1");
     addStep(
       job,
       "open",
-      `Menyiapkan Chromium untuk runtime ${usePackagedChromium ? "Vercel" : "lokal"}.`,
+      `Menyiapkan Chromium ${usePackagedChromium ? "terpaket" : "lokal"}.`,
       job.sourceUrl,
     );
     const executablePath = configuredChromiumPath

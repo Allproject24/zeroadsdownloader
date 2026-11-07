@@ -45,11 +45,17 @@ The automated link flow must stop as soon as it observes a validated official Sa
 
 **How to apply:** Treat a validated Safefileku URL as the terminal handoff state, even when no verification challenge has appeared yet.
 
-The source repository is GitHub and the production deployment is Vercel; Replit preview is not the live site.
+The source repository is GitHub; Vercel was the existing production target, and Replit preview is not the live site.
 
 **Why:** The user explicitly corrected the deployment context.
 
 **How to apply:** Verify Vercel-compatible builds and distinguish local checks from production success; do not claim a Vercel deploy unless it is actually confirmed.
+
+Do not run the downloader's web, API, or preview services on Replit. The user permits free non-Replit hosting when it better supports the browser-based download flow.
+
+**Why:** The user explicitly prohibited running the site on Replit and allowed another free host because downloads fail on Vercel.
+
+**How to apply:** Keep all Replit workflows stopped. Keep Vercel as an option, but do not promise another provider fixes host-side challenges; confirm real behavior only after the code is deployed there.
 
 For production debugging, do not guess missing URLs, branches, or deployment behavior. First confirm the change is in the configured GitHub production branch and that Vercel has deployed that commit; only then test the live deployment. Replit preview is not a substitute for Vercel verification.
 
