@@ -687,6 +687,11 @@ async function runBrowserFlow(job: DownloadJob): Promise<void> {
     if (job.status !== "running" || current.isClosed()) break;
 
     const currentUrl = current.url();
+    if (getManualSafefilekuUrl(currentUrl)) {
+      // Tahap 4 (halaman Safefileku): berhenti di sini dan serahkan ke pengguna.
+      blockDownloadAtHumanVerification(job, currentUrl);
+      break;
+    }
     const verification = await inspectHumanVerification(current);
     const text = verification.text;
     if (verification.blocked) {
@@ -838,6 +843,16 @@ async function runBrowserFlow(job: DownloadJob): Promise<void> {
         );
       }
     }
+  }
+
+  if (
+    job.status === "running" &&
+    !job.cancelRequested &&
+    !job.filePath &&
+    !job.downloadGuid &&
+    job.manualUrl
+  ) {
+    blockDownloadAtHumanVerification(job, job.manualUrl);
   }
 
   if (job.status === "running" && !job.cancelRequested) {
@@ -1073,9 +1088,14 @@ async function inspectHumanVerification(
     )
     .then(Boolean)
     .catch(() => false);
+  const turnstileWidget = await page
+    .$('.cf-turnstile, [data-sitekey], input[name="cf-turnstile-response"]')
+    .then(Boolean)
+    .catch(() => false);
   return {
     text,
-    blocked: isHumanVerification(text, page.url()) || cloudflareFrame,
+    blocked:
+      isHumanVerification(text, page.url()) || cloudflareFrame || turnstileWidget,
   };
 }
 
@@ -1091,7 +1111,7 @@ function blockDownloadAtHumanVerification(job: DownloadJob, url: string): void {
 
 function isHumanVerification(text: string, url: string): boolean {
   return (
-    /just a moment|verify (?:that )?you are human|verifying (?:that )?you are human|i am human|i'm human|human verification|checking your browser|complete the security check|cf-chl-|cf-turnstile|challenge-platform|cloudflare.{0,60}(?:verify|challenge|human)/i.test(
+    /just a moment|verify (?:that )?you are human|verifying (?:that )?you are human|i(?:['’]?m| am) (?:a )?human|human verification|checking your browser|complete the security check|cf-chl-|cf-turnstile|challenge-platform|cloudflare.{0,60}(?:verify|challenge|human)/i.test(
       `${text}\n${url}`,
     ) ||
     /\/cdn-cgi\/challenge-platform\//i.test(url)
