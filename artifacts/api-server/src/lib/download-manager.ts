@@ -89,6 +89,7 @@ const DEFAULT_ACTION_WAIT_MS = 3_000;
 const ACTION_DISCOVERY_GRACE_MS = 3_000;
 const ACTION_DISCOVERY_MAX_WAIT_MS = 15_000;
 const ACTION_DISCOVERY_POLL_MS = 400;
+const PASSIVE_CHALLENGE_GRACE_MS = 15_000;
 const jobs = new Map<string, DownloadJob>();
 const queuedWorkers: Array<() => void> = [];
 let activeWorkers = 0;
@@ -703,10 +704,46 @@ async function runBrowserFlow(job: DownloadJob): Promise<void> {
     if (job.status !== "running" || current.isClosed()) break;
 
     const currentUrl = current.url();
+    if (getManualSafefilekuUrl(currentUrl)) {
+      // Tahap 4 (halaman Safefileku): berhenti di sini dan serahkan ke pengguna.
+      blockDownloadAtHumanVerification(job, currentUrl);
+      break;
+    }
     const verification = await inspectHumanVerification(current);
     const text = verification.text;
     if (verification.blocked) {
-      blockDownloadAtHumanVerification(job, verification.url ?? currentUrl);
+      blockDownloadAtHumanVerification(
+        job,
+        verification.url ?? currentUrl,
+        verification.reason,
+      );
+      break;
+    }
+    if (verification.interstitial) {
+      addStep(
+        job,
+        "wait",
+        "Menunggu pemeriksaan otomatis halaman selesai.",
+        currentUrl,
+      );
+      const outcome = await waitForTransientChallenge(job, current);
+      if (job.status !== "running" || job.cancelRequested) break;
+      if (outcome === "resolved") {
+        enqueueFlowPage(current, current !== page);
+        continue;
+      }
+      const latest = await inspectHumanVerification(current);
+      if (!current.isClosed() && !latest.blocked && !latest.interstitial) {
+        enqueueFlowPage(current, current !== page);
+        continue;
+      }
+      blockDownloadAtHumanVerification(
+        job,
+        latest.url ?? current.url(),
+        latest.blocked
+          ? latest.reason
+          : "Pemeriksaan Cloudflare belum berlanjut setelah jeda otomatis; URL asli belum terlihat.",
+      );
       break;
     }
 
@@ -845,18 +882,37 @@ async function runBrowserFlow(job: DownloadJob): Promise<void> {
       if (nextAction) {
         enqueueFlowPage(current, current !== page);
       } else if (job.status === "running" && !job.cancelRequested) {
-        const controlState = await inspectVisibleActionControls(current);
-        const controlSummary = controlState.labels.length
-          ? ` Kontrol terlihat: ${controlState.labels.join(" | ").slice(0, 180)}.`
-          : " Tidak ada kontrol tombol Sfile yang terlihat.";
-        addStep(
-          job,
-          "notice",
-          `Tombol lanjutan yang didukung tidak muncul setelah jeda halaman.${controlSummary}`,
-          current.url(),
-        );
+        const verification = await inspectHumanVerification(current);
+        if (verification.interstitial) {
+          blockDownloadAtHumanVerification(
+            job,
+            verification.url ?? current.url(),
+            "Pemeriksaan Cloudflare belum berlanjut setelah jeda otomatis; URL asli belum terlihat.",
+          );
+        } else {
+          const controlState = await inspectVisibleActionControls(current);
+          const controlSummary = controlState.labels.length
+            ? ` Kontrol terlihat: ${controlState.labels.join(" | ").slice(0, 180)}.`
+            : " Tidak ada kontrol tombol Sfile yang terlihat.";
+          addStep(
+            job,
+            "notice",
+            `Tombol lanjutan yang didukung tidak muncul setelah jeda halaman.${controlSummary}`,
+            current.url(),
+          );
+        }
       }
     }
+  }
+
+  if (
+    job.status === "running" &&
+    !job.cancelRequested &&
+    !job.filePath &&
+    !job.downloadGuid &&
+    job.manualUrl
+  ) {
+    blockDownloadAtHumanVerification(job, job.manualUrl);
   }
 
   if (job.status === "running" && !job.cancelRequested) {
@@ -985,7 +1041,11 @@ async function waitForActionToAppear(
   while (job.status === "running" && !job.cancelRequested && !page.isClosed()) {
     const verification = await inspectHumanVerification(page);
     if (verification.blocked) {
-      blockDownloadAtHumanVerification(job, verification.url ?? page.url());
+      blockDownloadAtHumanVerification(
+        job,
+        verification.url ?? page.url(),
+        verification.reason,
+      );
       return null;
     }
 
@@ -1083,7 +1143,13 @@ async function inspectVisibleActionControls(
 
 async function inspectHumanVerification(
   page: Page,
-): Promise<{ text: string; blocked: boolean; url: string | null }> {
+): Promise<{
+  text: string;
+  blocked: boolean;
+  interstitial: boolean;
+  url: string | null;
+  reason: string;
+}> {
   const frameResults = await Promise.all(
     page.frames().map(async (frame) => {
       const url = frame.url();
@@ -1092,20 +1158,45 @@ async function inspectHumanVerification(
       const result = await frame
         .evaluate(() => ({
           text: `${document.title}\n${document.body?.innerText ?? ""}`.slice(0, 12_000),
+          hasHumanWidget: Boolean(
+            document.querySelector(
+              ".cf-turnstile, input[name='cf-turnstile-response']",
+            ),
+          ),
           hasChallengeFrame: Array.from(document.querySelectorAll("iframe")).some((iframe) => {
             const source = iframe.getAttribute("src") ?? "";
             const title = iframe.getAttribute("title") ?? "";
-            return /cloudflare|turnstile/i.test(source) || /challenge|verification/i.test(title);
+            return (
+              /challenges\.cloudflare\.com|\/cdn-cgi\/challenge-platform\/|turnstile/i.test(
+                source,
+              ) || /challenge/i.test(title)
+            );
           }),
         }))
-        .catch(() => ({ text: "", hasChallengeFrame: false }));
+        .catch(() => ({
+          text: "",
+          hasHumanWidget: false,
+          hasChallengeFrame: false,
+        }));
 
-      const blocked =
-        isHumanVerification(result.text, url) || result.hasChallengeFrame;
-      return { text: result.text, blocked, url };
+      const humanText = isHumanVerification(result.text);
+      const blocked = humanText || result.hasHumanWidget;
+      const interstitial =
+        !blocked &&
+        (isCloudflareChallengeUrl(url) ||
+          /just a moment|checking your browser/i.test(result.text) ||
+          result.hasChallengeFrame);
+      const title = result.text.split("\n")[0]?.trim().slice(0, 60) ?? "";
+      const reason = humanText
+        ? `teks verifikasi manusia; judul: “${title}”`
+        : result.hasHumanWidget
+          ? `widget verifikasi manusia; judul: “${title}”`
+          : `halaman pemeriksaan otomatis; judul: “${title}”`;
+      return { text: result.text, blocked, interstitial, url, reason };
     }),
   );
   const matchingFrame = frameResults.find((result) => result?.blocked);
+  const interstitialFrame = frameResults.find((result) => result?.interstitial);
   const text = frameResults
     .flatMap((result) => (result ? [result.text] : []))
     .join("\n")
@@ -1114,7 +1205,9 @@ async function inspectHumanVerification(
   return {
     text,
     blocked: Boolean(matchingFrame),
-    url: matchingFrame?.url ?? null,
+    interstitial: !matchingFrame && Boolean(interstitialFrame),
+    url: matchingFrame?.url ?? interstitialFrame?.url ?? null,
+    reason: matchingFrame?.reason ?? interstitialFrame?.reason ?? "",
   };
 }
 
@@ -1130,22 +1223,61 @@ function isCloudflareChallengeUrl(value: string): boolean {
   }
 }
 
-function blockDownloadAtHumanVerification(job: DownloadJob, url: string): void {
-  job.status = "blocked";
+function blockDownloadAtHumanVerification(
+  job: DownloadJob,
+  url: string,
+  reason = "",
+): void {
   rememberManualSafefilekuUrl(job, url);
-  job.error = job.manualUrl
-    ? "Safefileku meminta verifikasi manusia. Job server berhenti di sini; verifikasi dan unduhan dilakukan langsung di Safefileku."
-    : "Cloudflare meminta verifikasi manusia. Proses berhenti di sini dan tidak akan mencentang atau melewati verifikasi.";
+  if (job.manualUrl) {
+    job.status = "blocked";
+    job.error = null;
+    if (!job.message.startsWith("Tautan asli Safefileku ditemukan.")) {
+      const message =
+        "Tautan asli Safefileku ditemukan. Proses otomatis berhenti; lanjutkan sendiri di browser.";
+      job.message = message;
+      addStep(job, "notice", message, job.manualUrl);
+    }
+    return;
+  }
+
+  job.status = "blocked";
+  const displayUrl = safeDisplayUrl(url) || "halaman tak dikenal";
+  job.error =
+    typeof reason === "string" &&
+    reason.startsWith("Pemeriksaan Cloudflare belum berlanjut")
+      ? `Pemeriksaan Cloudflare di ${displayUrl} tidak berlanjut; URL asli belum terlihat. Verifikasi tidak dijalankan otomatis.`
+      : `Cloudflare meminta verifikasi manusia di ${displayUrl}${reason ? ` (${reason})` : ""}. Proses berhenti di sini dan tidak akan mencentang atau melewati verifikasi.`;
   job.message = job.error;
   addStep(job, "notice", job.error, url);
 }
 
-function isHumanVerification(text: string, url: string): boolean {
+async function waitForTransientChallenge(
+  job: DownloadJob,
+  page: Page,
+): Promise<"resolved" | "timed_out" | "stopped"> {
+  const deadline = Date.now() + PASSIVE_CHALLENGE_GRACE_MS;
+  while (Date.now() < deadline && job.status === "running" && !job.cancelRequested) {
+    if (page.isClosed()) return "stopped";
+    const observedUrl = getManualSafefilekuUrl(page.url());
+    if (observedUrl) {
+      rememberManualSafefilekuUrl(job, observedUrl);
+      return "stopped";
+    }
+    await waitWhileRunning(job, Math.min(500, deadline - Date.now()));
+    if (job.status !== "running" || job.cancelRequested) return "stopped";
+    const verification = await inspectHumanVerification(page);
+    if (verification.blocked) return "stopped";
+    if (!verification.interstitial) return "resolved";
+  }
+  return job.status === "running" ? "timed_out" : "stopped";
+}
+
+function isHumanVerification(text: string): boolean {
   return (
-    /just a moment|verify (?:that )?you are human|verifying (?:that )?you are human|i am human|i'm human|human verification|checking your browser|complete the security check|cf-chl-|cf-turnstile|challenge-platform|cloudflare.{0,60}(?:verify|challenge|human)/i.test(
-      `${text}\n${url}`,
-    ) ||
-    /\/cdn-cgi\/challenge-platform\//i.test(url)
+    /verify (?:that )?you are human|verifying (?:that )?you are human|i(?:['’]?m| am) (?:a )?human|human verification|complete the security check|please confirm you are human/i.test(
+      text,
+    )
   );
 }
 
