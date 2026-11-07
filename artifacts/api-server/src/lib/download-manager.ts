@@ -1104,7 +1104,7 @@ function blockDownloadAtHumanVerification(job: DownloadJob, url: string): void {
   rememberManualSafefilekuUrl(job, url);
   job.error = job.manualUrl
     ? "Safefileku meminta verifikasi manusia. Job server berhenti di sini; verifikasi dan unduhan dilakukan langsung di Safefileku."
-    : "Cloudflare meminta verifikasi manusia. Proses berhenti di sini dan tidak akan mencentang atau melewati verifikasi.";
+    : `Cloudflare meminta verifikasi manusia di ${safeDisplayUrl(url) || "halaman tak dikenal"}. Proses berhenti di sini dan tidak akan mencentang atau melewati verifikasi.`;
   job.message = job.error;
   addStep(job, "notice", job.error, url);
 }
