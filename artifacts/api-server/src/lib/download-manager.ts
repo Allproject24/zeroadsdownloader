@@ -695,7 +695,7 @@ async function runBrowserFlow(job: DownloadJob): Promise<void> {
     const verification = await inspectHumanVerification(current);
     const text = verification.text;
     if (verification.blocked) {
-      blockDownloadAtHumanVerification(job, currentUrl);
+      blockDownloadAtHumanVerification(job, currentUrl, verification.reason);
       break;
     }
 
@@ -979,8 +979,9 @@ async function waitForActionToAppear(
   let countdownStepAdded = false;
 
   while (job.status === "running" && !job.cancelRequested && !page.isClosed()) {
-    if ((await inspectHumanVerification(page)).blocked) {
-      blockDownloadAtHumanVerification(job, page.url());
+    const verification = await inspectHumanVerification(page);
+    if (verification.blocked) {
+      blockDownloadAtHumanVerification(job, page.url(), verification.reason);
       return null;
     }
 
@@ -1078,7 +1079,7 @@ async function inspectVisibleActionControls(
 
 async function inspectHumanVerification(
   page: Page,
-): Promise<{ text: string; blocked: boolean }> {
+): Promise<{ text: string; blocked: boolean; reason: string }> {
   const text = await page
     .evaluate(() => `${document.title}\n${document.body?.innerText ?? ""}`)
     .catch(() => "");
@@ -1092,19 +1093,32 @@ async function inspectHumanVerification(
     .$('.cf-turnstile, [data-sitekey], input[name="cf-turnstile-response"]')
     .then(Boolean)
     .catch(() => false);
+  const byText = isHumanVerification(text, page.url());
+  const reason = byText
+    ? "teks halaman"
+    : cloudflareFrame
+      ? "iframe Cloudflare"
+      : turnstileWidget
+        ? "widget captcha"
+        : "";
+  const title = text.split("\n")[0]?.trim().slice(0, 60) ?? "";
   return {
     text,
-    blocked:
-      isHumanVerification(text, page.url()) || cloudflareFrame || turnstileWidget,
+    blocked: byText || cloudflareFrame || turnstileWidget,
+    reason: reason ? `${reason}; judul: “${title}”` : "",
   };
 }
 
-function blockDownloadAtHumanVerification(job: DownloadJob, url: string): void {
+function blockDownloadAtHumanVerification(
+  job: DownloadJob,
+  url: string,
+  reason = "",
+): void {
   job.status = "blocked";
   rememberManualSafefilekuUrl(job, url);
   job.error = job.manualUrl
     ? "Safefileku meminta verifikasi manusia. Job server berhenti di sini; verifikasi dan unduhan dilakukan langsung di Safefileku."
-    : `Cloudflare meminta verifikasi manusia di ${safeDisplayUrl(url) || "halaman tak dikenal"}. Proses berhenti di sini dan tidak akan mencentang atau melewati verifikasi.`;
+    : `Cloudflare meminta verifikasi manusia di ${safeDisplayUrl(url) || "halaman tak dikenal"}${reason ? ` (${reason})` : ""}. Proses berhenti di sini dan tidak akan mencentang atau melewati verifikasi.`;
   job.message = job.error;
   addStep(job, "notice", job.error, url);
 }
