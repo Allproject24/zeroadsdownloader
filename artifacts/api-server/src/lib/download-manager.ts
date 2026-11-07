@@ -250,7 +250,16 @@ function getManualSafefilekuUrl(value: string): string | null {
 
 function rememberManualSafefilekuUrl(job: DownloadJob, value: string): void {
   const manualUrl = getManualSafefilekuUrl(value);
-  if (manualUrl) job.manualUrl = manualUrl;
+  if (!manualUrl || job.manualUrl === manualUrl) return;
+  job.manualUrl = manualUrl;
+  if (job.status !== "running") return;
+
+  const message =
+    "Tautan asli Safefileku ditemukan. Proses otomatis berhenti; lanjutkan sendiri di browser.";
+  job.status = "blocked";
+  job.error = null;
+  job.message = message;
+  addStep(job, "notice", message, manualUrl);
 }
 
 function sanitizeFilename(value: string): string {
@@ -549,6 +558,10 @@ async function runBrowserFlow(job: DownloadJob): Promise<void> {
           for (const redirectedRequest of request.redirectChain()) {
             rememberManualSafefilekuUrl(job, redirectedRequest.url());
           }
+          if (job.status !== "running" || job.cancelRequested) {
+            await request.abort("blockedbyclient");
+            return;
+          }
         }
         if (/^(data|blob|about):/i.test(rawUrl)) {
           await request.continue();
@@ -603,6 +616,7 @@ async function runBrowserFlow(job: DownloadJob): Promise<void> {
       const url = frame.url();
       if (!url || url === "about:blank") return;
       rememberManualSafefilekuUrl(job, url);
+      if (job.status !== "running" || job.cancelRequested) return;
       if (frame !== target.mainFrame()) return;
       if (!isFlowUrl(url)) {
         if (target !== page && passivePages.has(target)) {
@@ -739,6 +753,7 @@ async function runBrowserFlow(job: DownloadJob): Promise<void> {
         )
         .catch(() => undefined);
       await waitWhileRunning(job, 300);
+      if (job.status !== "running" || job.cancelRequested) break;
     }
     await current.bringToFront().catch(() => undefined);
     const nextPreferred = preferredNextAction(action.label, actionHistory);
@@ -747,6 +762,7 @@ async function runBrowserFlow(job: DownloadJob): Promise<void> {
     try {
       await action.handle.click({ delay: 40 });
     } catch (error) {
+      if (job.status !== "running" || job.cancelRequested) break;
       const errorText =
         error instanceof Error ? `${error.name} ${error.message}` : String(error);
       if (/timeout|timed out/i.test(errorText)) {
@@ -763,6 +779,7 @@ async function runBrowserFlow(job: DownloadJob): Promise<void> {
         currentUrl,
       );
     }
+    if (job.status !== "running" || job.cancelRequested) break;
     const postClickWait = waitAfterAction(action.label);
     addStep(
       job,

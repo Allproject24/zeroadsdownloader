@@ -38,3 +38,15 @@ The user said the current appearance is final and deployment work must not chang
 **Why:** The user explicitly asked that no further visual changes be made.
 
 **How to apply:** Limit this work to code organization and deployment configuration; preserve visible copy, layout, colors, and interactions unless the user asks otherwise.
+
+The automated link flow must stop as soon as it observes a validated official Safefileku `/download/<id>` URL. Show that URL for the user to open and verify in their own browser; do not automate the human check or click Download after the URL is found.
+
+**Why:** The user clarified that ZeroAds Downloader should only handle the short-link/ad stages and hand off at the original URL for manual verification.
+
+**How to apply:** Treat a validated Safefileku URL as the terminal handoff state, even when no verification challenge has appeared yet.
+
+The source repository is GitHub and the production deployment is Vercel; Replit preview is not the live site.
+
+**Why:** The user explicitly corrected the deployment context.
+
+**How to apply:** Verify Vercel-compatible builds and distinguish local checks from production success; do not claim a Vercel deploy unless it is actually confirmed.
