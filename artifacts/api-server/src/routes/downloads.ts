@@ -6,6 +6,7 @@ import {
   GetDownloadedFileParams,
   StartDownloadBody,
 } from "@workspace/api-zod";
+import { createReadStream } from "node:fs";
 import { Router, type IRouter } from "express";
 import {
   canStartSynchronousDownload,
@@ -41,28 +42,67 @@ router.post("/downloads", async (req, res): Promise<void> => {
     return;
   }
 
-  try {
-    const { job, file } = await processDownloadSynchronously(parsed.data.url);
-    if (file) {
-      res.setHeader("Cache-Control", "no-store");
-      res.setHeader("X-Download-Result", "file");
-      res.setHeader("X-Download-Id", job.id);
-      res.setHeader("X-Download-File-Name", encodeURIComponent(file.fileName));
-      res.setHeader("X-Download-File-Size", String(file.fileSize));
-      res.download(file.path, file.fileName, (error) => {
-        if (error) {
-          req.log.error({ err: error, jobId: job.id }, "Download response failed");
-        }
-      });
-      return;
+  res.status(200);
+  res.setHeader("Content-Type", "application/octet-stream");
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, no-transform");
+  res.setHeader("X-Accel-Buffering", "no");
+  res.flushHeaders();
+
+  const writeRecord = (record: unknown): void => {
+    if (!res.destroyed && !res.writableEnded) {
+      res.write(`${JSON.stringify(record)}\n`);
     }
-    res.setHeader("Cache-Control", "no-store");
-    res.json(job);
-  } catch (error) {
-    req.log.error({ err: error }, "Synchronous download failed");
-    res.status(500).json({
-      error: error instanceof Error ? error.message : "Unduhan tidak dapat diproses.",
+  };
+
+  try {
+    let sentInitialJob = false;
+    const { job, file } = await processDownloadSynchronously(
+      parsed.data.url,
+      (updatedJob) => {
+        if (!sentInitialJob) {
+          writeRecord({ type: "job", job: updatedJob });
+          sentInitialJob = true;
+          return;
+        }
+        const step = updatedJob.steps.at(-1);
+        if (!step) return;
+        writeRecord({
+          type: "step",
+          id: updatedJob.id,
+          status: updatedJob.status,
+          message: updatedJob.message,
+          step,
+        });
+      },
+    );
+    writeRecord({
+      type: "end",
+      job,
+      file: file ? { fileName: file.fileName, fileSize: file.fileSize } : null,
     });
+    if (file && !res.destroyed && !res.writableEnded) {
+      const fileStream = createReadStream(file.path);
+      for await (const chunk of fileStream) {
+        if (res.destroyed || res.writableEnded) {
+          fileStream.destroy();
+          return;
+        }
+        if (!res.write(chunk)) {
+          await new Promise<void>((resolve, reject) => {
+            res.once("drain", resolve);
+            res.once("error", reject);
+          });
+        }
+      }
+    }
+    if (!res.writableEnded) res.end();
+  } catch (error) {
+    req.log.error({ err: error }, "Synchronous download stream failed");
+    writeRecord({
+      type: "error",
+      message: error instanceof Error ? error.message : "Unduhan tidak dapat diproses.",
+    });
+    if (!res.writableEnded) res.end();
   }
 });
 

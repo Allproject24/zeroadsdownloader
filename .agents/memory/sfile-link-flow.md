@@ -8,3 +8,9 @@ The expected route is `sfl.gl` → `app.khaddavi.net`: click Open and wait 10 se
 **Why:** The user clarified that the website only handles the short-link/ad stages and hands off as soon as the original URL appears; they verify and download in their own browser. Navigation capture includes child frames, but top-level-only challenge checks can otherwise suppress a nested-frame destination.
 
 **How to apply:** Use this route and timing when changing Sfile link-following behavior. Poll briefly for delayed controls before the official destination is reached. Once a validated `/download/<id>` URL appears, stop immediately and hand it to the user; never auto-click the file download or attempt human verification.
+
+A local run using the same `sfl.gl/EMu3rP` input returned different Khaddavi article pages. One reached the validated Safefileku URL; later runs stayed on an “Open” control after the 10-second wait and 15-second discovery window, with no destination URL observed.
+
+**Why:** The live page variant can change between requests, and a successful local run does not prove every article variant advances or that Vercel behaves the same way.
+
+**How to apply:** Treat a repeated “Open” control with no next action as an observed stop condition. Log the host, title, HTTP response, and visible controls; do not repeatedly click or infer a destination URL.

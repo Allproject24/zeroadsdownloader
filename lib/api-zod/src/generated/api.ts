@@ -18,6 +18,7 @@ export const HealthCheckResponse = zod.object({
 
 
 /**
+ * Streams newline-delimited job diagnostics, followed by optional raw file bytes declared in the terminal record.
  * @summary Process a supported short link and return its file
  */
 export const startDownloadBodyUrlMax = 2048;
@@ -28,21 +29,7 @@ export const StartDownloadBody = zod.object({
   "url": zod.string().url().max(startDownloadBodyUrlMax)
 })
 
-export const StartDownloadResponse = zod.object({
-  "id": zod.string(),
-  "status": zod.enum(['queued', 'running', 'completed', 'failed', 'blocked', 'cancelled']),
-  "message": zod.string(),
-  "steps": zod.array(zod.object({
-  "id": zod.number().int(),
-  "kind": zod.enum(['open', 'wait', 'scroll', 'click', 'redirect', 'download', 'notice']),
-  "message": zod.string(),
-  "url": zod.string().nullable()
-})),
-  "fileName": zod.string().nullable(),
-  "fileSize": zod.number().int().nullable(),
-  "error": zod.string().nullable(),
-  "manualUrl": zod.string().nullable()
-})
+export const StartDownloadResponse = zod.unknown()
 
 
 /**

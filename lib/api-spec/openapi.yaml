@@ -31,6 +31,7 @@ paths:
       operationId: startDownload
       tags: [downloads]
       summary: Process a supported short link and return its file
+      description: Streams newline-delimited job diagnostics, followed by optional raw file bytes declared in the terminal record.
       requestBody:
         required: true
         content:
@@ -41,13 +42,10 @@ paths:
         "200":
           description: Download result
           content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/DownloadJob"
             application/octet-stream:
               schema:
                 type: string
-                format: binary
+                description: Newline-delimited JSON job records, then optional raw file bytes.
         "400":
           description: Invalid or unsupported URL
         "429":

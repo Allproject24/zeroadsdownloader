@@ -169,9 +169,10 @@ export const getStartDownloadUrl = () => {
 }
 
 /**
+ * Streams newline-delimited job diagnostics, followed by optional raw file bytes declared in the terminal record.
  * @summary Process a supported short link and return its file
  */
-export const startDownload = async (downloadRequest: DownloadRequest, options?: Parameters<typeof customFetch>[1]): Promise<DownloadJob | Blob> => {
+export const startDownload = async (downloadRequest: DownloadRequest, options?: Parameters<typeof customFetch>[1]): Promise<Blob> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
     if (!h) return {};
@@ -187,7 +188,7 @@ export const startDownload = async (downloadRequest: DownloadRequest, options?: 
     }
     return headers;
   };
-return customFetch<DownloadJob | Blob>(getStartDownloadUrl(),
+return customFetch<Blob>(getStartDownloadUrl(),
   {
     ...options,
     method: 'POST',

@@ -334,6 +334,64 @@ button:disabled {
   margin-top: 22px;
 }
 
+.process-log {
+  width: 100%;
+  margin-top: 14px;
+  border: 1px solid rgb(255 255 255 / .1);
+  border-radius: 16px;
+  color: #bdbdbd;
+  background: #101010;
+  font-size: 11px;
+}
+
+.process-log summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  color: #ddd;
+  cursor: pointer;
+  list-style-position: inside;
+}
+
+.process-log-count {
+  color: #777;
+  font-size: 10px;
+}
+
+.process-log ol {
+  display: grid;
+  gap: 9px;
+  max-height: 260px;
+  overflow: auto;
+  margin: 0;
+  padding: 0 14px 14px;
+  list-style: none;
+}
+
+.process-log li {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  align-items: start;
+  gap: 8px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.process-log-index {
+  color: #777;
+  font: 10px/1.6 var(--app-font-mono);
+}
+
+.process-log code {
+  display: block;
+  margin-top: 3px;
+  color: #858585;
+  font: 10px/1.5 var(--app-font-mono);
+  overflow-wrap: anywhere;
+}
+
 .retry-button {
   flex: none;
   padding: 8px 12px;

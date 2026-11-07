@@ -12,6 +12,7 @@ import {
 import type { DownloadJob } from '@workspace/api-client-react';
 import GhostMark from '@/components/GhostMark';
 import { runDownload } from './download-api';
+import ProcessLog from './ProcessLog';
 import { formatSize, getManualSafefilekuUrl } from './utils';
 
 export default function DownloaderPage() {
@@ -23,6 +24,7 @@ export default function DownloaderPage() {
   const [startError, setStartError] = useState('');
   const [downloadError, setDownloadError] = useState('');
   const [copyFeedback, setCopyFeedback] = useState('');
+  const [clientLogMessages, setClientLogMessages] = useState<string[]>([]);
   const [isStarting, setIsStarting] = useState(false);
   const [startedAt, setStartedAt] = useState<number | null>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(1);
@@ -55,24 +57,20 @@ export default function DownloaderPage() {
     setDownloadedFile(null);
     setDownloadError('');
     setCopyFeedback('');
+    setClientLogMessages([]);
     setIsStarting(true);
     setStartedAt(Date.now());
     setElapsedSeconds(1);
 
     try {
-      const result = await runDownload(url.trim());
+      const result = await runDownload(
+        url.trim(),
+        (updatedJob) => setJob(updatedJob),
+        (message) => setClientLogMessages((current) => [...current, message]),
+      );
       if (result.kind === 'file') {
         setDownloadedFile(result.blob);
-        setJob({
-          id: result.jobId,
-          status: 'completed',
-          message: 'File siap diunduh.',
-          steps: [],
-          fileName: result.fileName,
-          fileSize: result.fileSize,
-          error: null,
-          manualUrl: null,
-        });
+        setJob(result.job);
       } else {
         setJob(result.job);
       }
@@ -193,6 +191,12 @@ export default function DownloaderPage() {
             {inputError && <p className="input-error" id="url-error" data-testid="text-url-error">{inputError}</p>}
             {startError && <div className="error-callout" role="alert" data-testid="alert-start-error"><CircleAlert size={15} />{startError}</div>}
           </form>
+
+          <ProcessLog
+            job={job}
+            active={isProcessing}
+            clientMessages={clientLogMessages}
+          />
 
           {job && !isProcessing && (
             <section className="job-panel" aria-live="polite" data-testid="panel-job-status">

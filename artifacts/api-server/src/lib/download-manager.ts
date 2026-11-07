@@ -62,6 +62,7 @@ interface DownloadJob extends DownloadJobView {
   downloadGuid: string | null;
   suggestedFilename: string | null;
   attachmentUrls: Set<string>;
+  onUpdate?: (job: DownloadJobView) => void;
 }
 
 const SUPPORTED_START_HOSTS = [
@@ -146,8 +147,10 @@ export function startDownloadJob(sourceUrl: string): DownloadJobView {
 
 export async function processDownloadSynchronously(
   sourceUrl: string,
+  onUpdate?: (job: DownloadJobView) => void,
 ): Promise<ProcessedDownload> {
   const job = createJob(sourceUrl);
+  job.onUpdate = onUpdate;
   jobs.set(job.id, job);
   addStep(job, "open", "Tautan diterima; menunggu browser.", sourceUrl);
   await runJob(job);
@@ -220,6 +223,7 @@ function addStep(
     url: url ? safeDisplayUrl(url) : null,
   });
   job.message = message;
+  job.onUpdate?.(toView(job));
 }
 
 function safeDisplayUrl(value: string): string {
@@ -405,11 +409,16 @@ async function runJob(job: DownloadJob): Promise<void> {
     return;
   }
   job.status = "running";
-  job.message = "Membuka halaman perantara di browser.";
 
   try {
     const configuredChromiumPath = process.env.CHROMIUM_PATH;
     const usePackagedChromium = !configuredChromiumPath && process.env.VERCEL === "1";
+    addStep(
+      job,
+      "open",
+      `Menyiapkan Chromium untuk runtime ${usePackagedChromium ? "Vercel" : "lokal"}.`,
+      job.sourceUrl,
+    );
     const executablePath = configuredChromiumPath
       || (usePackagedChromium
         ? await chromium.executablePath()
@@ -429,6 +438,7 @@ async function runJob(job: DownloadJob): Promise<void> {
           ]
         : chromium.args,
     });
+    addStep(job, "open", "Browser siap; mulai membuka tautan.", job.sourceUrl);
     await runBrowserFlow(job);
   } catch (error) {
     if (!job.cancelRequested && !isTerminalStatus(job.status)) {
@@ -526,8 +536,30 @@ async function runBrowserFlow(job: DownloadJob): Promise<void> {
   const actionHistoryByPage = new WeakMap<Page, string[]>();
   const preferredActionsByPage = new WeakMap<Page, string>();
   const waitedReadyPages = new WeakSet<Page>();
+  const pageSnapshots = new WeakMap<Page, string>();
   let uniqueTabs = 0;
   const startedAt = Date.now();
+
+  const recordPageSnapshot = async (
+    candidate: Page,
+    label: string,
+  ): Promise<void> => {
+    if (candidate.isClosed()) return;
+    const [title, controls] = await Promise.all([
+      candidate.title().catch(() => ""),
+      inspectVisibleActionControls(candidate),
+    ]);
+    const cleanTitle = title.trim().replace(/\s+/g, " ").slice(0, 100);
+    const visibleControls = controls.labels.slice(0, 8);
+    const signature = `${candidate.url()}|${cleanTitle}|${visibleControls.join("|")}`;
+    if (pageSnapshots.get(candidate) === signature) return;
+    pageSnapshots.set(candidate, signature);
+    const titleText = cleanTitle ? `judul “${cleanTitle}”` : "judul kosong";
+    const controlsText = visibleControls.length
+      ? `kontrol terlihat: ${visibleControls.join(" | ")}`
+      : "tidak ada kontrol lanjutan yang dikenali";
+    addStep(job, "open", `${label}: ${titleText}; ${controlsText}.`, candidate.url());
+  };
 
   const enqueueFlowPage = (candidate: Page, popup = false): void => {
     const allowedHosts = popup ? SAFE_POPUP_HOSTS : FLOW_HOSTS;
@@ -607,6 +639,17 @@ async function runBrowserFlow(job: DownloadJob): Promise<void> {
 
     target.on("response", (response) => {
       rememberManualSafefilekuUrl(job, response.url());
+      if (
+        response.request().isNavigationRequest() &&
+        response.frame() === target.mainFrame()
+      ) {
+        addStep(
+          job,
+          "redirect",
+          `Halaman merespons HTTP ${response.status()}.`,
+          response.url(),
+        );
+      }
       const disposition = response.headers()["content-disposition"] ?? "";
       if (response.status() >= 200 && response.status() < 300 && /attachment/i.test(disposition)) {
         job.attachmentUrls.add(response.url());
@@ -684,10 +727,17 @@ async function runBrowserFlow(job: DownloadJob): Promise<void> {
   addStep(job, "open", "Membuka tautan di browser.", job.sourceUrl);
   try {
     await page.goto(job.sourceUrl, { waitUntil: "domcontentloaded", timeout: 30_000 });
-  } catch {
+  } catch (error) {
     if (page.url() === "about:blank") throw new Error("Halaman tautan tidak dapat dibuka.");
-    addStep(job, "notice", "Halaman membutuhkan waktu lebih lama; melanjutkan pemeriksaan.", page.url());
+    const detail = error instanceof Error ? error.message.slice(0, 180) : String(error).slice(0, 180);
+    addStep(
+      job,
+      "notice",
+      `Navigasi awal belum selesai (${detail}); memeriksa halaman yang terbuka.`,
+      page.url(),
+    );
   }
+  await recordPageSnapshot(page, "Halaman awal");
 
   while (
     pendingPages.length > 0 &&
@@ -702,6 +752,7 @@ async function runBrowserFlow(job: DownloadJob): Promise<void> {
 
     await waitWhileRunning(job, 1_200);
     if (job.status !== "running" || current.isClosed()) break;
+    await recordPageSnapshot(current, "Halaman diperiksa");
 
     const currentUrl = current.url();
     if (getManualSafefilekuUrl(currentUrl)) {
@@ -778,7 +829,7 @@ async function runBrowserFlow(job: DownloadJob): Promise<void> {
     addStep(
       job,
       "click",
-      `Membuka tombol “${action.label}” di tab latar (${attempts + 1}/${MAX_OPEN_CLICKS_PER_TAB}).`,
+      `Membuka tombol “${action.label}” (${attempts + 1}/${MAX_OPEN_CLICKS_PER_TAB}).`,
       currentUrl,
     );
     const priorUrl = current.url();
@@ -928,7 +979,8 @@ async function runBrowserFlow(job: DownloadJob): Promise<void> {
     } else if (uniqueTabs > MAX_BROWSER_TABS) {
       job.error = "Alur membuka terlalu banyak tab; proses dihentikan.";
     } else if (!job.filePath) {
-      job.error = "Tidak ditemukan respons file unduhan yang didukung.";
+      job.error =
+        "Tautan asli atau file belum ditemukan. Periksa log untuk halaman dan tombol terakhir yang diamati.";
     }
     if (job.error) {
       job.status = "failed";
