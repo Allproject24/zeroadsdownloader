@@ -50,3 +50,9 @@ The source repository is GitHub and the production deployment is Vercel; Replit 
 **Why:** The user explicitly corrected the deployment context.
 
 **How to apply:** Verify Vercel-compatible builds and distinguish local checks from production success; do not claim a Vercel deploy unless it is actually confirmed.
+
+For production debugging, do not guess missing URLs, branches, or deployment behavior. Use the exact GitHub/Vercel target and keep Replit workflows stopped unless the user asks to run them.
+
+**Why:** The user emphasized that this fix must target GitHub and Vercel, not the Replit preview, and asked for no unsupported assumptions.
+
+**How to apply:** Verify the repository and remote branch before changes, rely on Vercel deployment evidence for production claims, and ask for an exact public URL when one is needed to test.
